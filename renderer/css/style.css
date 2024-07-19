@@ -1,0 +1,56 @@
+/* GRID LAYOUT */
+
+.container {  display: grid;
+    grid-template-columns: 1fr 2fr 1.5fr;
+    grid-template-rows: 1fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+      "sidebar main projection-bar";
+  }
+  
+  .sidebar {  display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+      "library"
+      "favorites";
+    grid-area: sidebar;
+  }
+  
+  .favorites { grid-area: favorites; }
+  
+  .library { grid-area: library; }
+  
+  .main { grid-area: main; }
+  
+  .projection-bar {  display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+      "preview"
+      "controls";
+    grid-area: projection-bar;
+  }
+  
+  .preview { grid-area: preview; }
+  
+  .controls { grid-area: controls; }
+  
+/* MAIN WINDOW STYLING */
+
+#main {
+    font-family: sans-serif;
+}
+
+/* PROJECTOR STYLING */
+
+#projection {
+    background-color: #000000;
+    color: #FFFFFF;
+    font-family: sans-serif;
+}

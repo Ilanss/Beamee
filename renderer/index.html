@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'" />
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/renderer.js" defer></script>
+    <title>Beamee</title>
+</head>
+<body id="main">
+    <div class="container">
+        <div class="sidebar">
+          <div class="favorites">
+            <div id="favorites-title"><h2>Favorites</h2></div>
+            <div id="favorites-list">
+                <ul>
+
+                </ul>
+            </div>
+          </div>
+          <div class="library">
+            <div id="library-title"><h2>Library</h2></div>
+            <div id="library-list">
+                <ul></ul>
+            </div>
+          </div>
+        </div>
+        <div class="main">main</div>
+        <div class="projection-bar">
+          <div class="preview">preview</div>
+          <div class="controls">
+              <button id="toggle-projection">Start projection</button>
+              <button id="prev-verse">Previous</button>
+              <button id="next-verse">Next</button>
+              <button id="black-screen">Black screen</button>
+            </div>
+        </div>
+      </div>
+</body>
+</html>

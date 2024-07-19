@@ -1,0 +1,24 @@
+{
+    "lyrics": [
+        {
+            "type": "chorus",
+            "text": "Quand je vois le ciel,\\n
+Oeuvre de tes doigts,\\n
+La lune et les étoiles que tu créas.\\n
+\\n
+Quand je vois le ciel,\\n
+Oeuvre de tes doigts,\\n
+La lune et les étoiles que tu créas."
+        },
+        {
+            "type": "verse",
+            "text": "Qu'est donc l'homme, ô Éternel ?\\n
+Qu'est donc l'homme, ô Éternel ?\\n
+Qu'est donc l'homme, ô Éternel ?\\n
+Que tu prennes garde à lui ?"
+        }
+    ],
+    "order": [1,2,1],
+    "id": "JEM-0002",
+    "name": "Quand je vois le ciel"
+}
