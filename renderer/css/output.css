@@ -2396,12 +2396,12 @@ html {
   margin-bottom: 0.5rem;
 }
 
-.mt-3 {
-  margin-top: 0.75rem;
-}
-
 .mt-2 {
   margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
 }
 
 .flex {
@@ -2522,6 +2522,10 @@ html {
   padding-bottom: 0.5rem;
 }
 
+.pb-3 {
+  padding-bottom: 0.75rem;
+}
+
 .pr-3 {
   padding-right: 0.75rem;
 }
@@ -2530,24 +2534,8 @@ html {
   padding-top: 4rem;
 }
 
-.pt-2 {
-  padding-top: 0.5rem;
-}
-
 .pt-4 {
   padding-top: 1rem;
-}
-
-.pb-5 {
-  padding-bottom: 1.25rem;
-}
-
-.pb-4 {
-  padding-bottom: 1rem;
-}
-
-.pb-3 {
-  padding-bottom: 0.75rem;
 }
 
 .text-center {
@@ -2570,10 +2558,6 @@ html {
 
 .uppercase {
   text-transform: uppercase;
-}
-
-.capitalize {
-  text-transform: capitalize;
 }
 
 .text-white {
@@ -2626,6 +2610,22 @@ body {
 
 #verse-display {
   overflow-y: scroll;
+}
+
+/* .tooltip {
+  transition: opacity 0.3s;
+  opacity: 0;
+  visibility: hidden;
+} */
+
+.tooltip-delay {
+  transition-delay: 5s;
+  /* Adjust the delay as needed */
+}
+
+.group:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* PROJECTOR STYLING */

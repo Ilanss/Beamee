@@ -37,6 +37,21 @@ body {
   overflow-y: scroll;
 }
 
+/* .tooltip {
+  transition: opacity 0.3s;
+  opacity: 0;
+  visibility: hidden;
+} */
+
+.tooltip-delay {
+  transition-delay: 5s; /* Adjust the delay as needed */
+}
+
+.group:hover .tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* PROJECTOR STYLING */
 
 #projection {

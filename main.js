@@ -14,6 +14,8 @@ let isProjectionOn = false;
 let projectorWindow;
 let mainWindow;
 
+let lastVerseCount;
+
 const createMainWindow = () => {
     // Create the browser window.
     mainWindow = new BrowserWindow({
@@ -127,11 +129,62 @@ const createMainWindow = () => {
         }).catch(err => {
             console.error('Error listing files and folders:', err);
         });
+
+        let favorites = JSON.parse(fs.readFileSync(favoritesFile, 'utf8'));
+
+        favorites.forEach(favorite => {
+            favorite.songs = favorite.songs.map(songId => {
+                let songPath = findSongPath(songId);
+                return {
+                    id: songId,
+                    path: songPath,
+                    name: getSongName(songPath)
+                };
+            });
+        });
+        // console.log(JSON.parse(fs.readFileSync(favoritesFile, 'utf8')));
+        console.log(favorites[0]);
+        mainWindow.webContents.send('favorites:list', favorites);
+        // loadFavorites().then(favorites => {
+        //     mainWindow.webContents.send('favorites:list', favorites);
+        // }).catch(err => {
+        //     console.error('Error loading favorites:', err);
+        // });
     });
 
     // Open the DevTools.
     // mainWindow.webContents.openDevTools()
 }
+
+const getSongName = (songPath) => {
+    const songData = JSON.parse(fs.readFileSync(songPath, 'utf-8'));
+    return songData.name;
+};
+
+const findSongPath = (songId) => {
+    let songPath = null;
+    
+    // Implement logic to find the song file path. 
+    // For example, you can use fs.readdirSync to traverse directories if needed.
+    
+    function findInDir(dir, songId) {
+        const files = fs.readdirSync(dir);
+        for (let file of files) {
+            let filePath = path.join(dir, file);
+            let stat = fs.statSync(filePath);
+            if (stat.isDirectory()) {
+                let result = findInDir(filePath, songId);
+                if (result) return result;
+            } else if (path.basename(filePath, path.extname(filePath)) === songId) {
+                return filePath;
+            }
+        }
+        return null;
+    }
+    
+    songPath = findInDir(songLibraryLocation, songId);
+    return songPath;
+};
 
 const createProjectorWindow = () => {
     let externalDisplay = null;
@@ -182,8 +235,12 @@ const createProjectorWindow = () => {
 
     projectorWindow.webContents.on('did-finish-load', () => {
         mainWindow.webContents.send('projection:status', isProjectionOn);
+        setTimeout(
+            () => {
+                mainWindow.focus();
+            }, 500
+        )
     });
-
 }
 
 function createPreferencesWindow() {
@@ -218,6 +275,28 @@ function loadPreferences() {
     backgroundColor: '#000000',
   };
 }
+
+function registerShortcuts(verseCount) {
+    for(let i = 0; i <= verseCount; i++) {
+        globalShortcut.register(`CmdOrCtrl+${i}`, () => {
+            mainWindow.webContents.send('verse:change', i - 1);
+        });
+    }
+
+    lastVerseCount = verseCount;
+}
+
+function unregisterShortcuts(verseCount) {
+    for(let i = 0; i <= verseCount; i++) {
+        globalShortcut.unregister(`CmdOrCtrl+${i}`);
+    }
+}
+
+// function loadFavorites() {
+//     return new Promise((resolve, reject) => {
+//         const favoritesList = JSON.parse(fs.readFileSync(favoritesFile, 'utf8'));
+//     })
+// }
 
 function listFilesAndFolders(directoryPath) {
     return new Promise((resolve, reject) => {
@@ -300,12 +379,8 @@ app.whenReady().then(() => {
     }
 
     if (!fs.existsSync(path.join(__dirname, "favorites.json"))) {
-        fs.writeFileSync(path.join(__dirname, 'favorites.json'), '');
+        fs.writeFileSync(path.join(__dirname, 'favorites.json'), '{}');
     }
-
-    globalShortcut.register('CmdOrCtrl+1', () => {
-        console.log('Electron loves global shortcuts!')
-    })
 
     app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the
@@ -333,3 +408,8 @@ ipcMain.on('get-preferences', (event) => {
     const preferences = loadPreferences();
     event.returnValue = preferences;
 });  
+
+ipcMain.on('song:loaded', (event, verseCount) => {
+    unregisterShortcuts(lastVerseCount);
+    registerShortcuts(verseCount);
+});

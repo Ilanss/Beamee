@@ -5,6 +5,7 @@ const blackScreen = document.querySelector('#black-screen');
 const main = document.querySelector('#verse-display ul');
 const libraryListContainer = document.querySelector('#library-list ul');
 const favoritesListContainer = document.querySelector('#favorites-list');
+const favoritesPath = "favorites.json";
 const previewContent = document.querySelector('#preview');
 const createSongFolderButton = document.querySelector('#create-song-folder');
 const createPlaylistButton = document.querySelector('#create-playlist');
@@ -45,6 +46,71 @@ ipcRenderer.on("projection:prev", () => {
 ipcRenderer.on("library:list", (files) => {
     createFileList(files, libraryListContainer);
 })
+
+ipcRenderer.on("favorites:list", (favorites) => {
+    createFavoritesList(favorites);
+})
+
+ipcRenderer.on("verse:change", (verse) => {
+    currentVerseIndex = verse;
+    updateProjection();
+})
+
+function createFavoritesList(favorites) {
+    // favorites = JSON.parse(window.fs.readFileSync(favoritesPath, 'utf8'));
+
+    favorites.forEach(favorite => {
+        let li = document.createElement('li');
+        let a = document.createElement('a');
+
+        const details = document.createElement('details');
+        // details.setAttribute('open', '');
+
+        const summary = document.createElement('summary');
+
+        summary.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+            </svg>
+            ${favorite.name}
+            `;
+
+        const ul = document.createElement('ul');
+        details.appendChild(summary);
+        details.appendChild(ul);
+
+        // li.innerText = file.name;
+        // let ul = document.createElement('ul');
+        favorite.songs.forEach(song => {
+            let liSong = document.createElement('li');
+            let aSong = document.createElement('a');
+                
+            aSong.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+            </svg>
+            ${song.name}`
+            liSong.appendChild(aSong);
+            // li.innerText = songData.id + " " + songData.name;
+            liSong.setAttribute('id', song.id);
+            // li.setAttribute('class', 'song p-2.5 mt-3 flex items-center rounded-md px-4 duration-300 cursor-pointer hover:bg-blue-600 text-white');
+            
+            liSong.addEventListener('click', () => {
+                document.querySelectorAll('li a').forEach(function(aSong) {
+                    aSong.classList.remove('active');
+                });
+                
+                liSong.querySelector('a').classList.add("active");
+                loadSong(song.path);
+            });
+            
+            details.querySelector('ul').appendChild(liSong);
+        })
+        
+        li.appendChild(details);
+
+        favoritesListContainer.appendChild(li);
+    });
+}
 
 function createFileList(files, container) {
     libraryList = files;
@@ -121,6 +187,7 @@ function loadSong(songPath) {
     })
 
     document.querySelector('#song-name').innerText = songData.name;
+    ipcRenderer.send('song:loaded', songData.lyrics.length);
 }
 
 // function displayLyrics(sections) {
@@ -175,3 +242,7 @@ document.getElementById('black-screen').addEventListener('click', () => {
     currentVerseIndex = undefined;
     ipcRenderer.send('black-screen');
 });
+
+// document.addEventListener("DOMContentLoaded", function(event) { 
+//     createFavoritesList();
+//   });
