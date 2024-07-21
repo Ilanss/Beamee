@@ -2,55 +2,31 @@
     "lyrics": [
         {
             "type": "verse",
-            "text": "Au commencement Tu étais là\\n
-Tu as dit que la lumière soit\\n
-Les astres ont écouté ta voix\\n
-La terre a tourné pour la première fois"
+            "text": "Au commencement Tu étais là\\nTu as dit que la lumière soit\\nLes astres ont écouté ta voix\\nLa terre a tourné pour la première fois"
         },
         {
             "type": "verse",
-            "text": "Avec amour sagesse et art\\n
-Tu écrivais notre histoire\\n
-Tu nous as fait à ton image\\n
-Donné la terre pour héritage"
+            "text": "Avec amour sagesse et art\\nTu écrivais notre histoire\\nTu nous as fait à ton image\\nDonné la terre pour héritage"
         },
         {
             "type": "verse",
-            "text": "Mais qui peut se comparer à toi ?\\n
-Tu appelles à la vie ce qui n’existe pas\\n
-Qui peut se comparer à toi?"
+            "text": "Mais qui peut se comparer à toi ?\\nTu appelles à la vie ce qui n’existe pas\\nQui peut se comparer à toi?"
         },
         {
             "type": "chorus",
-            "text": "Tu es Artisan de merveilles\\n
-L’univers n’a pas son pareil\\n
-Artisan de merveilles\\n
-La Création étincelle\\n
-De Ta puissance, de Ta sagesse éternelle\\n
-Oh oh Artisan de merveilles"
+            "text": "Tu es Artisan de merveilles\\nL’univers n’a pas son pareil\\nArtisan de merveilles\\nLa Création étincelle\\nDe Ta puissance, de Ta sagesse éternelle\\nOh oh Artisan de merveilles"
         },
         {
             "type": "verse",
-            "text": "De l’infini au minuscule\\n
-Des Galaxies jusqu’aux cellules\\n
-Sommets de neige vagues qui dansent\\n
-Nous parlent de toi comme une évidence"
+            "text": "De l’infini au minuscule\\nDes Galaxies jusqu’aux cellules\\nSommets de neige vagues qui dansent\\nNous parlent de toi comme une évidence"
         },
         {
             "type": "verse",
-            "text": "Tes œuvres sont le miroir\\n
-Dans lequel nous voyons Ta gloire\\n
-Jésus par Toi tout fut créé\\n
-Se maintient par Ta volonté"
+            "text": "Tes œuvres sont le miroir\\nDans lequel nous voyons Ta gloire\\nJésus par Toi tout fut créé\\nSe maintient par Ta volonté"
         },
         {
             "type": "verse",
-            "text": "Que nous doutes s’effacent\\n
-Devant le spectacle de ta majesté\\n
-\\n
-Que cœurs se réveillent\\n
-Nos yeux s’émerveillent\\n
-De Ta majesté"
+            "text": "Que nous doutes s’effacent\\nDevant le spectacle de ta majesté\\n\\nQue cœurs se réveillent\\nNos yeux s’émerveillent\\nDe Ta majesté"
         }
     ],
     "order": [1,2,3,4,5,6,3,4,7,4],

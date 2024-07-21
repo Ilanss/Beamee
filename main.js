@@ -4,12 +4,12 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
-const { app, BrowserWindow, Menu, ipcMain } = require('electron')
+const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut } = require('electron')
 
-const isDev = process.env.NODE_ENV !== 'production';
+const isDev = !app.isPackaged;
 
 const songLibraryLocation = path.join(__dirname, "library");
-const favoriteLibraryLocation = path.join(__dirname, "favorite");
+const favoritesFile = path.join(__dirname, "favorites.json");
 let isProjectionOn = false;
 let projectorWindow;
 let mainWindow;
@@ -27,6 +27,94 @@ const createMainWindow = () => {
         }
     })
 
+    const menu = Menu.buildFromTemplate([
+        {
+          label: 'File',
+          submenu: [
+            {
+              label: 'New Song',
+              click: () => {
+                mainWindow.webContents.send('show-add-song-view');
+              },
+              accelerator: 'CmdOrCtrl+N'
+            },
+            {
+              label: 'New Folder',
+              click: () => {
+                mainWindow.webContents.send('show-add-folder-view');
+              },
+              accelerator: 'CmdOrCtrl+Shift+N'
+            },
+            { type: 'separator' },
+            {
+              label: 'Preferences',
+              click: () => {
+                createPreferencesWindow();
+              },
+              accelerator: 'CmdOrCtrl+,'
+            },
+            { type: 'separator' },
+            {
+              label: 'Quit',
+              click: () => { app.quit(); },
+              accelerator: 'CmdOrCtrl+Q'
+            }
+          ]
+        },
+        {
+          label: 'Edit',
+          submenu: [
+            { role: 'undo' },
+            { role: 'redo' },
+            { type: 'separator' },
+            { role: 'cut' },
+            { role: 'copy' },
+            { role: 'paste' }
+          ]
+        },
+        {
+            label: 'Controls',
+            submenu: [
+                { 
+                    label: 'Start/stop projection',
+                    click: () => {     
+                        if (!isProjectionOn) {
+                            createProjectorWindow();
+                        } else {
+                            projectorWindow.close();
+                        }
+                    },
+                    accelerator: 'CmdOrCtrl+P'
+                },
+                {
+                    label: 'Next verse',
+                    click: () => { mainWindow.webContents.send('projection:next'); },
+                    accelerator: 'n'
+                },
+                {
+                    label: 'Previous verse',
+                    click: () => { mainWindow.webContents.send('projection:prev'); },
+                    accelerator: 'p'
+                },
+                {
+                    label: 'Chorus',
+                    click: () => { mainWindow.webContents.send('projection:chorus'); },
+                    accelerator: 'r'
+                },
+                {
+                    label: 'Black screen',
+                    click: () => { 
+                        projectorWindow.webContents.send('black-screen'); 
+                        mainWindow.webContents.send('black-screen'); 
+                    },
+                    accelerator: 'b'
+                }
+            ]
+        }
+      ]);
+    
+      Menu.setApplicationMenu(menu);
+    
     if (isDev) {
         mainWindow.webContents.openDevTools();
     }
@@ -34,9 +122,7 @@ const createMainWindow = () => {
     mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
 
     mainWindow.webContents.on('did-finish-load', () => {
-        console.log('Main window content fully loaded.');
         listFilesAndFolders(songLibraryLocation).then(files => {
-            console.log('Sending library:list event with files:', files);
             mainWindow.webContents.send('library:list', files);
         }).catch(err => {
             console.error('Error listing files and folders:', err);
@@ -48,24 +134,89 @@ const createMainWindow = () => {
 }
 
 const createProjectorWindow = () => {
-    projectorWindow = new BrowserWindow({
+    let externalDisplay = null;
+    const displays = screen.getAllDisplays();
+
+    // Look for a secondary display (if any)
+    for (const display of displays) {
+      if (display.bounds.x !== 0 || display.bounds.y !== 0) {
+        externalDisplay = display;
+        break;
+      }
+    }
+
+    const windowOptions = {
         name: "Beamee Projection",
-        width: 800,
+        fullscreen: true,
+        width: isDev ? 1200 : 800,
         height: 600,
-        /*         webPreferences: {
-                  preload: path.join(__dirname, 'preload.js')
-                }
-         */
-    })
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+        }
+    };
+
+    // If an external display is found, set the position to the secondary display
+    if (externalDisplay) {
+        windowOptions.x = externalDisplay.bounds.x;
+        windowOptions.y = externalDisplay.bounds.y;
+    }
+
+    // Create the window with the specified options
+    projectorWindow = new BrowserWindow(windowOptions);
 
     // and load the index.html of the app.
-    projectorWindow.loadFile(path.join(__dirname, 'renderer/projection.html'));
+    projectorWindow.loadFile(path.join(__dirname, 'renderer/projector.html'));
+
     isProjectionOn = true;
+
+    if (isDev) {
+        projectorWindow.webContents.openDevTools();
+    }
 
     projectorWindow.on('close', () => {
         isProjectionOn = false;
         mainWindow.webContents.send('projection:status', isProjectionOn);
     })
+
+    projectorWindow.webContents.on('did-finish-load', () => {
+        mainWindow.webContents.send('projection:status', isProjectionOn);
+    });
+
+}
+
+function createPreferencesWindow() {
+    let prefWindow = new BrowserWindow({
+      width: 400,
+      height: 300,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js')
+    }
+});
+  
+    prefWindow.loadFile('renderer/preferences.html');
+    if (isDev) {
+        mainWindow.webContents.openDevTools();
+    }
+  
+}
+  
+const preferencesFile = path.join(__dirname, 'preferences.json');
+
+function loadPreferences() {
+  if (fs.existsSync(preferencesFile)) {
+    const preferences = JSON.parse(fs.readFileSync(preferencesFile, 'utf8'));
+    return preferences;
+  }
+  return {
+    fontFamily: 'Arial',
+    fontSize: '24',
+    textColor: '#FFFFFF',
+    backgroundColor: '#000000',
+  };
 }
 
 function listFilesAndFolders(directoryPath) {
@@ -95,8 +246,11 @@ function listFilesAndFolders(directoryPath) {
                             reject(subErr);
                         }
                     } else {
+                        const songData = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+
                         result.push({
                             name: file.name,
+                            id: songData.id,
                             path: fullPath,
                             isFile: true,
                             isDirectory: false,
@@ -110,20 +264,10 @@ function listFilesAndFolders(directoryPath) {
     });
 }
 
-const loadSongLibrary = () => {
-    // fs.readdirSync(songLibrary).forEach(file => {
-    //     console.log(file.isDirectory());
-    //     console.log(file);
-    // })
-    fs.readdirSync(songLibraryLocation, { withFileTypes: true }).filter(item => item.isDirectory()).map(file => console.log(file.name));
-}
-
-
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
 
 ipcMain.on('projection:toggle', (e) => {
-    console.log(projectorWindow);
     if (!isProjectionOn) {
         createProjectorWindow();
         e.reply("projection:status", isProjectionOn);
@@ -133,6 +277,18 @@ ipcMain.on('projection:toggle', (e) => {
     
 })
 
+ipcMain.on('display-lyrics', (event, lyrics) => {
+    if (isProjectionOn) {
+      projectorWindow.webContents.send('display-lyrics', lyrics);
+    }
+  });
+
+  ipcMain.on('black-screen', () => {
+    if (isProjectionOn) {
+      projectorWindow.webContents.send('black-screen');
+    }
+  });
+  
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -143,9 +299,13 @@ app.whenReady().then(() => {
         fs.mkdirSync("library");
     }
 
-    if (!fs.existsSync(path.join(__dirname, "favorites"))) {
-        fs.mkdirSync("favorites");
+    if (!fs.existsSync(path.join(__dirname, "favorites.json"))) {
+        fs.writeFileSync(path.join(__dirname, 'favorites.json'), '');
     }
+
+    globalShortcut.register('CmdOrCtrl+1', () => {
+        console.log('Electron loves global shortcuts!')
+    })
 
     app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the
@@ -160,3 +320,16 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
 })
+
+function savePreferences(preferences) {
+    fs.writeFileSync(preferencesFile, JSON.stringify(preferences, null, 2), 'utf8');
+}
+  
+ipcMain.on('save-preferences', (event, preferences) => {
+    savePreferences(preferences);
+});
+  
+ipcMain.on('get-preferences', (event) => {
+    const preferences = loadPreferences();
+    event.returnValue = preferences;
+});  

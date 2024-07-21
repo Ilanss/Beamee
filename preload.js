@@ -1,5 +1,6 @@
 // preload.js
 const os = require('os');
+const fs = require('fs');
 const path = require('path');
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -11,8 +12,18 @@ contextBridge.exposeInMainWorld('path', {
     join: (...args) => path.join(...args),
 });
 
+contextBridge.exposeInMainWorld('fs', {
+    readdirSync: (dir) => fs.readdirSync(dir),
+    readFileSync: (file, encoding) => fs.readFileSync(file, encoding),
+    writeFileSync: (file, data) => fs.writeFileSync(file, data),
+    mkdirSync: (dir) => fs.mkdirSync(dir),
+    existsSync: (file) => fs.existsSync(file),
+    lstatSync: (file) => fs.lstatSync(file)
+});
+
 contextBridge.exposeInMainWorld('ipcRenderer', {
     send: (channel, data) => ipcRenderer.send(channel, data),
     on: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args)),
     invoke: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args)),
+    sendSync: (channel, data) => ipcRenderer.sendSync(channel, data),
 });
