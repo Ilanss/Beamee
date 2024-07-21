@@ -2575,7 +2575,7 @@ body {
 
 /* GRID LAYOUT */
 
-.container {
+.wrapper {
   display: grid;
   grid-template-columns: 1fr 2fr 1.5fr;
   grid-template-rows: 1fr max-content;
@@ -2584,6 +2584,7 @@ body {
   grid-template-areas:
       "sidebar verse-display preview-box"
       "sidebar controls controls";
+  width: 100%;
 }
 
 .controls {
@@ -2654,4 +2655,21 @@ body {
 .active\:bg-gray-300:active {
   --tw-bg-opacity: 1;
   background-color: rgb(209 213 219 / var(--tw-bg-opacity));
+}
+
+@media (prefers-color-scheme: dark) {
+  .dark\:border-neutral-700 {
+    --tw-border-opacity: 1;
+    border-color: rgb(64 64 64 / var(--tw-border-opacity));
+  }
+
+  .dark\:bg-slate-800 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(30 41 59 / var(--tw-bg-opacity));
+  }
+
+  .hover\:dark\:bg-slate-700:hover {
+    --tw-bg-opacity: 1;
+    background-color: rgb(51 65 85 / var(--tw-bg-opacity));
+  }
 }

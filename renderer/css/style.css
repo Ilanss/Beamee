@@ -8,7 +8,7 @@ body {
 
 /* GRID LAYOUT */
 
-  .container {  display: grid;
+  .wrapper {  display: grid;
     grid-template-columns: 1fr 2fr 1.5fr;
     grid-template-rows: 1fr max-content;
     gap: 0px 0px; 
@@ -16,6 +16,7 @@ body {
     grid-template-areas:
       "sidebar verse-display preview-box"
       "sidebar controls controls";
+      width: 100%;
   }
   
   .controls { grid-area: controls; }

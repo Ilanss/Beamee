@@ -176,7 +176,7 @@ function loadSong(songPath) {
         let formattedText = verse.text.replace(/\\n/g, '<br>');
         li.innerHTML = `<p class="mt-2 text-xs uppercase">#${i + 1} ${verse.type}</p>` + formattedText;
         li.setAttribute('id', `verse-${i}`);
-        li.classList.add("bg-gray-100", "rounded-md", "p-2", "px-4", "pb-3", "hover:bg-gray-200", "active:bg-gray-300")
+        li.classList.add("bg-gray-100", "rounded-md", "p-2", "px-4", "pb-3", "hover:bg-gray-200", "active:bg-gray-300", "dark:bg-slate-800", "hover:dark:bg-slate-700")
 
         li.addEventListener('click', () => {
             currentVerseIndex = i;
