@@ -106,7 +106,9 @@ const createMainWindow = () => {
                 {
                     label: 'Black screen',
                     click: () => { 
-                        projectorWindow.webContents.send('black-screen'); 
+                        if (isProjectionOn) {
+                            projectorWindow.webContents.send('black-screen'); 
+                        }
                         mainWindow.webContents.send('black-screen'); 
                     },
                     accelerator: 'b'
