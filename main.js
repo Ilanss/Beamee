@@ -137,11 +137,15 @@ const createMainWindow = () => {
         favorites.forEach(favorite => {
             favorite.songs = favorite.songs.map(songId => {
                 let songPath = findSongPath(songId);
-                return {
-                    id: songId,
-                    path: songPath,
-                    name: getSongName(songPath)
-                };
+                if(songPath != null) {
+                    return {
+                        id: songId,
+                        path: songPath,
+                        name: getSongName(songPath)
+                    };
+                } else {
+                    return false;
+                }
             });
         });
         // console.log(JSON.parse(fs.readFileSync(favoritesFile, 'utf8')));
@@ -156,6 +160,8 @@ const createMainWindow = () => {
 
     // Open the DevTools.
     // mainWindow.webContents.openDevTools()
+
+    console.log(db);
 }
 
 const getSongName = (songPath) => {

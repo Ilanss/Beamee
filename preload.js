@@ -3,6 +3,7 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 const { contextBridge, ipcRenderer } = require('electron');
+const Sortable = require('sortablejs');
 
 contextBridge.exposeInMainWorld('os', {
     homedir: () => os.homedir(),
@@ -27,3 +28,9 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     invoke: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args)),
     sendSync: (channel, data) => ipcRenderer.sendSync(channel, data),
 });
+
+contextBridge.exposeInMainWorld('Sortable', {
+    create: (element, options) => Sortable.create(element, options)
+});
+
+// contextBridge.exposeInMainWorld('Sortable', Sortable);

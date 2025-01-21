@@ -2417,8 +2417,16 @@ html {
   height: 1rem;
 }
 
+.h-1\/4 {
+  height: 25%;
+}
+
 .h-10 {
   height: 2.5rem;
+}
+
+.h-3\/5 {
+  height: 60%;
 }
 
 .h-4 {
@@ -2465,6 +2473,10 @@ html {
   --tw-space-x-reverse: 0;
   margin-right: calc(0.5rem * var(--tw-space-x-reverse));
   margin-left: calc(0.5rem * calc(1 - var(--tw-space-x-reverse)));
+}
+
+.overflow-scroll {
+  overflow: scroll;
 }
 
 .rounded-md {

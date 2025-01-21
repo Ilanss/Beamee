@@ -108,7 +108,7 @@ function createFavoritesList(favorites) {
         
         li.appendChild(details);
 
-        favoritesListContainer.appendChild(li);
+        favoritesListContainer.querySelector('ul').appendChild(li);
     });
 }
 
@@ -151,6 +151,7 @@ function createFileList(files, container) {
             li.appendChild(a);
             // li.innerText = songData.id + " " + songData.name;
             li.setAttribute('id', file.id);
+            li.classList.add('draggable');
             // li.setAttribute('class', 'song p-2.5 mt-3 flex items-center rounded-md px-4 duration-300 cursor-pointer hover:bg-blue-600 text-white');
 
             li.addEventListener('click', () => {
@@ -246,3 +247,56 @@ document.getElementById('black-screen').addEventListener('click', () => {
 // document.addEventListener("DOMContentLoaded", function(event) { 
 //     createFavoritesList();
 //   });
+
+// Sortable.js
+
+
+/* var favoritesSortable = Sortable.create(favoritesListContainer.querySelector('ul'), {
+    // group: {
+    //     name: 'favorites',
+    //     put: 'library',
+    // },
+    group: 'shared',
+    animation: 150,
+    handle: '.draggable',
+    onAdd: function (evt) {
+        // This event is fired when an item is added to the list
+        const item = evt.item;
+        if (item.parentNode !== evt.from) {
+            item.setAttribute('draggable', 'true');
+            item.classList.add('draggable');
+        }
+    }
+});
+
+var librarySortable = Sortable.create(libraryListContainer, {
+    // sort: false,
+    // draggable: ".draggable",
+    // group: {
+    //     name: 'library',
+    //     pull: 'clone',
+    // }
+    group: {
+        name: 'shared',
+        pull: 'clone',
+        put: false
+    },
+    sort: false,
+    handle: '.handle'}); */
+
+
+    var favoritesSortable = Sortable.create(favoritesListContainer.querySelector('ul'), {
+    group: {
+        name: 'favorites',
+        put: 'library',
+    },
+});
+
+var librarySortable = Sortable.create(libraryListContainer, {
+    sort: false,
+    draggable: ".draggable",
+    group: {
+        name: 'library',
+        pull: 'clone',
+    }
+});

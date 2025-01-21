@@ -1,7 +1,7 @@
 {
   "name": "beamee",
   "productName": "Beamee",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -12,7 +12,8 @@
   "author": "Ilans",
   "license": "ISC",
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.1"
+    "electron-squirrel-startup": "^1.0.1",
+    "sortablejs": "^1.15.2"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.4.0",
