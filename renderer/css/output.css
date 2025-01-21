@@ -2476,7 +2476,8 @@ html {
 }
 
 .overflow-scroll {
-  overflow: scroll;
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 .rounded-md {

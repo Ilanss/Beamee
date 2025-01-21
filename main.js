@@ -286,7 +286,7 @@ function loadPreferences() {
 
 function registerShortcuts(verseCount) {
     for(let i = 0; i <= verseCount; i++) {
-        globalShortcut.register(`CmdOrCtrl+${i}`, () => {
+        globalShortcut.register(`${i}`, () => {
             mainWindow.webContents.send('verse:change', i - 1);
         });
     }
@@ -296,7 +296,7 @@ function registerShortcuts(verseCount) {
 
 function unregisterShortcuts(verseCount) {
     for(let i = 0; i <= verseCount; i++) {
-        globalShortcut.unregister(`CmdOrCtrl+${i}`);
+        globalShortcut.unregister(`${i}`);
     }
 }
 
