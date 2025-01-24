@@ -98,9 +98,23 @@ const createMainWindow = () => {
                     accelerator: 'n'
                 },
                 {
+                    label: 'Next verse',
+                    click: () => { mainWindow.webContents.send('projection:next'); },
+                    visible: false,
+                    acceleratorWorksWhenHidden: true,
+                    accelerator: 'Right'
+                },
+                {
                     label: 'Previous verse',
                     click: () => { mainWindow.webContents.send('projection:prev'); },
                     accelerator: 'p'
+                },
+                {
+                    label: 'Previous verse',
+                    visible: false,
+                    acceleratorWorksWhenHidden: true,
+                    click: () => { mainWindow.webContents.send('projection:prev'); },
+                    accelerator: 'Left'
                 },
                 {
                     label: 'Chorus',
