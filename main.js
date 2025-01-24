@@ -1,10 +1,14 @@
 // main.js
 
 // Modules to control application life and create native browser window
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
-const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut } = require('electron')
+const path = require('path'); // TODO after rework it should required only in file controller
+// const os = require('os'); // TODO check if useful 
+const fs = require('fs'); // TODO after rework it should required only in file controller
+const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut } = require('electron');
+
+// Controller imports
+const songController = require('./assets/js/songController.js');
+const fileController = require('./assets/js/fileController.js');
 
 const isDev = !app.isPackaged;
 
@@ -161,7 +165,6 @@ const createMainWindow = () => {
     // Open the DevTools.
     // mainWindow.webContents.openDevTools()
 
-    console.log(db);
 }
 
 const getSongName = (songPath) => {

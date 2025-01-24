@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Playlist 1",
+        "songs": ["JEM-0002","JEM-0001"]
+    },
+    {
+        "name": "Playlist 2",
+        "songs": ["JEM-0002","JEM-0001","JEM-0001"]
+    }
+]
