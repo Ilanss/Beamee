@@ -15,7 +15,6 @@ const isDev = !app.isPackaged;
 let isProjectionOn = false;
 let projectorWindow;
 let mainWindow;
-let prefWindow;
 let appDataPaths;
 let migrationResult;
 let libraryState;
@@ -245,7 +244,7 @@ const createMainWindow = () => {
             {
               label: 'Preferences',
               click: () => {
-                createPreferencesWindow();
+                mainWindow.webContents.send('navigate', 'settings');
               },
               accelerator: 'CmdOrCtrl+,'
             },
@@ -410,38 +409,6 @@ const createProjectorWindow = () => {
     });
 }
 
-function createPreferencesWindow() {
-    if (prefWindow) {
-        if (prefWindow.isMinimized()) {
-            prefWindow.restore();
-        }
-
-        prefWindow.show();
-        prefWindow.focus();
-        return prefWindow;
-    }
-
-    prefWindow = new BrowserWindow({
-      width: 400,
-      height: 300,
-      webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: true,
-        preload: path.join(__dirname, 'preload.js')
-    }
-});
-  
-    prefWindow.loadFile(path.join(__dirname, 'renderer/preferences.html'));
-    if (isDev) {
-        prefWindow.webContents.openDevTools();
-    }
-
-    prefWindow.on('closed', () => {
-        prefWindow = null;
-    });
-  
-}
-  
 function loadPreferences() {
   return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
 }
@@ -569,6 +536,13 @@ ipcMain.handle('restore-preferences', () => {
 
 ipcMain.handle('get-preferences', () => {
     return loadPreferences();
+});
+
+ipcMain.handle('library:state', () => {
+    return {
+        library: libraryState?.tree || [],
+        favorites: loadFavorites(),
+    };
 });
 
 ipcMain.on('song:loaded', (event, verseCount) => {

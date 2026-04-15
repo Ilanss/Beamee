@@ -1,6 +1,8 @@
-const fontSelect = document.getElementById('font-family');
-const form = document.getElementById('preferences-form');
-const statusElement = document.getElementById('preferences-status');
+let rootElement = null;
+let fontSelect = null;
+let form = null;
+let statusElement = null;
+let mounted = false;
 
 const fallbackFonts = [
   'Arial',
@@ -21,6 +23,37 @@ const fallbackFonts = [
 
 let currentPreferences = null;
 let availableFonts = fallbackFonts;
+const cleanupTasks = [];
+let mountContext = null;
+
+const on = (target, eventName, handler, options) => {
+  target?.addEventListener(eventName, handler, options);
+
+  cleanupTasks.push(() => {
+    target?.removeEventListener(eventName, handler, options);
+  });
+};
+
+const onIpc = (channel, handler) => {
+  ipcRenderer.on(channel, handler);
+  cleanupTasks.push(() => {
+    ipcRenderer.off(channel, handler);
+  });
+};
+
+const resetCleanup = () => {
+  while (cleanupTasks.length) {
+    const cleanup = cleanupTasks.pop();
+
+    try {
+      cleanup?.();
+    } catch (error) {
+      console.warn('Failed to clean up preferences view listener', error);
+    }
+  }
+};
+
+const isMountCurrent = () => mounted && (!mountContext || typeof mountContext.isCurrent !== 'function' || mountContext.isCurrent());
 
 const showStatus = (message, isError = false) => {
   if (!statusElement) {
@@ -53,7 +86,7 @@ const populateFontOptions = (fontFamilies) => {
 };
 
 const setInputValue = (id, value) => {
-  const element = document.getElementById(id);
+  const element = rootElement?.querySelector(`#${id}`);
 
   if (element) {
     element.value = value;
@@ -61,7 +94,7 @@ const setInputValue = (id, value) => {
 };
 
 const readNumericValue = (id, fallback, parser = Number.parseFloat) => {
-  const element = document.getElementById(id);
+  const element = rootElement?.querySelector(`#${id}`);
 
   if (!element) {
     return fallback;
@@ -115,10 +148,10 @@ const loadPreferences = async () => {
 };
 
 const readPreferencesFromForm = () => ({
-  fontFamily: document.getElementById('font-family').value,
+  fontFamily: fontSelect.value,
   fontSize: readNumericValue('font-size', currentPreferences?.fontSize, Number.parseInt),
-  textColor: document.getElementById('text-color').value,
-  backgroundColor: document.getElementById('background-color').value,
+  textColor: rootElement?.querySelector('#text-color')?.value,
+  backgroundColor: rootElement?.querySelector('#background-color')?.value,
   lineHeight: readNumericValue('line-height', currentPreferences?.lineHeight),
   paddingTop: readNumericValue('padding-top', currentPreferences?.paddingTop, Number.parseInt),
   paddingBottom: readNumericValue('padding-bottom', currentPreferences?.paddingBottom, Number.parseInt),
@@ -126,51 +159,85 @@ const readPreferencesFromForm = () => ({
   paddingRight: readNumericValue('padding-right', currentPreferences?.paddingRight, Number.parseInt),
 });
 
-getAvailableFonts().then((fontFamilies) => {
-  availableFonts = fontFamilies;
-
-  if (currentPreferences) {
-    applyPreferencesToForm(currentPreferences);
-  } else {
-    populateFontOptions(availableFonts);
+export async function mount(root, context = {}) {
+  if (mounted) {
+    return;
   }
-});
-loadPreferences();
 
-ipcRenderer.on('preferences:changed', (preferences) => {
-  applyPreferencesToForm(preferences);
-});
+  mounted = true;
+  mountContext = context;
+  rootElement = root;
+  fontSelect = rootElement.querySelector('#font-family');
+  form = rootElement.querySelector('#preferences-form');
+  statusElement = rootElement.querySelector('#preferences-status');
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
+  onIpc('preferences:changed', (preferences) => {
+    applyPreferencesToForm(preferences);
+  });
+
+  on(form, 'submit', async (e) => {
+    e.preventDefault();
+
+    try {
+      showStatus('Saving...');
+      const preferences = await ipcRenderer.invoke('save-preferences', readPreferencesFromForm());
+      applyPreferencesToForm(preferences);
+      showStatus('Preferences saved.');
+    } catch (error) {
+      console.error('Failed to save preferences', error);
+      showStatus('Failed to save preferences.', true);
+    }
+  });
+
+  on(form, 'reset', (e) => {
+    e.preventDefault();
+
+    if (currentPreferences) {
+      applyPreferencesToForm(currentPreferences);
+    }
+  });
+
+  on(rootElement.querySelector('#restore-defaults'), 'click', async () => {
+    try {
+      showStatus('Restoring defaults...');
+      const preferences = await ipcRenderer.invoke('restore-preferences');
+      applyPreferencesToForm(preferences);
+      showStatus('Defaults restored.');
+    } catch (error) {
+      console.error('Failed to restore default preferences', error);
+      showStatus('Failed to restore defaults.', true);
+    }
+  });
 
   try {
-    showStatus('Saving...');
-    const preferences = await ipcRenderer.invoke('save-preferences', readPreferencesFromForm());
+    const [fontFamilies, preferences] = await Promise.all([
+      getAvailableFonts(),
+      ipcRenderer.invoke('get-preferences'),
+    ]);
+
+    if (!isMountCurrent()) {
+      return;
+    }
+
+    availableFonts = fontFamilies;
     applyPreferencesToForm(preferences);
-    showStatus('Preferences saved.');
+    showStatus('');
   } catch (error) {
-    console.error('Failed to save preferences', error);
-    showStatus('Failed to save preferences.', true);
-  }
-});
+    if (!isMountCurrent()) {
+      return;
+    }
 
-form.addEventListener('reset', (e) => {
-  e.preventDefault();
-
-  if (currentPreferences) {
-    applyPreferencesToForm(currentPreferences);
+    console.error('Failed to load preferences', error);
+    showStatus('Failed to load preferences.', true);
   }
-});
+}
 
-document.getElementById('restore-defaults').addEventListener('click', async () => {
-  try {
-    showStatus('Restoring defaults...');
-    const preferences = await ipcRenderer.invoke('restore-preferences');
-    applyPreferencesToForm(preferences);
-    showStatus('Defaults restored.');
-  } catch (error) {
-    console.error('Failed to restore default preferences', error);
-    showStatus('Failed to restore defaults.', true);
-  }
-});
+export async function unmount() {
+  resetCleanup();
+  mounted = false;
+  rootElement = null;
+  fontSelect = null;
+  form = null;
+  statusElement = null;
+  mountContext = null;
+}

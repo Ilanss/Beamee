@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { contextBridge, ipcRenderer } = require('electron');
 const Sortable = require('sortablejs');
+const ipcListenerMap = new Map();
 
 contextBridge.exposeInMainWorld('os', {
     homedir: () => os.homedir(),
@@ -24,7 +25,26 @@ contextBridge.exposeInMainWorld('fs', {
 
 contextBridge.exposeInMainWorld('ipcRenderer', {
     send: (channel, data) => ipcRenderer.send(channel, data),
-    on: (channel, func) => ipcRenderer.on(channel, (event, ...args) => func(...args)),
+    on: (channel, func) => {
+        const listener = (event, ...args) => func(...args);
+
+        if (!ipcListenerMap.has(channel)) {
+            ipcListenerMap.set(channel, new Map());
+        }
+
+        ipcListenerMap.get(channel).set(func, listener);
+        ipcRenderer.on(channel, listener);
+    },
+    off: (channel, func) => {
+        const listener = ipcListenerMap.get(channel)?.get(func);
+
+        if (!listener) {
+            return;
+        }
+
+        ipcRenderer.removeListener(channel, listener);
+        ipcListenerMap.get(channel)?.delete(func);
+    },
     invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
     sendSync: (channel, data) => ipcRenderer.sendSync(channel, data),
 });

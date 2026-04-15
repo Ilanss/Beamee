@@ -1,13 +1,45 @@
-const toggleProjectionButton = document.querySelector('#toggle-projection');
-const prevVerse = document.querySelector('#prev-verse');
-const nextVerse = document.querySelector('#next-verse');
-const main = document.querySelector('#verse-display ul');
-const libraryListContainer = document.querySelector('#library-list ul');
-const favoritesListContainer = document.querySelector('#favorites-list');
-const favoritesListRoot = favoritesListContainer?.querySelector('ul');
-const createPlaylistButton = document.querySelector('#create-playlist');
-const previewContent = document.querySelector('#preview');
-const previewLyrics = document.createElement('div');
+let rootElement = null;
+let toggleProjectionButton = null;
+let prevVerse = null;
+let nextVerse = null;
+let main = null;
+let libraryListContainer = null;
+let favoritesListContainer = null;
+let favoritesListRoot = null;
+let createPlaylistButton = null;
+let previewContent = null;
+let previewLyrics = null;
+let mounted = false;
+let currentSongPath;
+
+const cleanupTasks = [];
+
+const on = (target, eventName, handler, options) => {
+    target?.addEventListener(eventName, handler, options);
+
+    cleanupTasks.push(() => {
+        target?.removeEventListener(eventName, handler, options);
+    });
+};
+
+const onIpc = (channel, handler) => {
+    ipcRenderer.on(channel, handler);
+    cleanupTasks.push(() => {
+        ipcRenderer.off(channel, handler);
+    });
+};
+
+const resetCleanup = () => {
+    while (cleanupTasks.length) {
+        const cleanup = cleanupTasks.pop();
+
+        try {
+            cleanup?.();
+        } catch (error) {
+            console.warn('Failed to clean up library view listener', error);
+        }
+    }
+};
 
 let currentVerseIndex;
 let currentLyrics;
@@ -16,11 +48,7 @@ let libraryClickDelegated = false;
 let favoritesClickDelegated = false;
 let favoritesContextMenuDelegated = false;
 let currentPreferences;
-
-if (previewContent) {
-    previewLyrics.id = 'preview-lyrics';
-    previewContent.appendChild(previewLyrics);
-}
+let mountContext = null;
 
 function toggleProjection() {
     ipcRenderer.send('projection:toggle');
@@ -34,7 +62,8 @@ function applyPreviewPreferences(preferences) {
     currentPreferences = preferences;
 
     previewContent.style.fontFamily = preferences.fontFamily;
-    previewContent.style.fontSize = `${preferences.fontSize * (previewContent.offsetWidth / 1280)}px`;
+    const previewWidth = previewContent.offsetWidth || 1280;
+    previewContent.style.fontSize = `${preferences.fontSize * (previewWidth / 1280)}px`;
     previewContent.style.color = preferences.textColor;
     previewContent.style.backgroundColor = preferences.backgroundColor;
     previewContent.style.lineHeight = String(preferences.lineHeight);
@@ -45,59 +74,167 @@ function applyPreviewPreferences(preferences) {
 
 }
 
-ipcRenderer.invoke('get-preferences')
-    .then(applyPreviewPreferences)
-    .catch((error) => {
-        console.error('Failed to load preview preferences', error);
+const isMountCurrent = () => mounted && (!mountContext || typeof mountContext.isCurrent !== 'function' || mountContext.isCurrent());
+
+export async function mount(root, context = {}) {
+    if (mounted) {
+        return;
+    }
+
+    mounted = true;
+    mountContext = context;
+    rootElement = root;
+    toggleProjectionButton = rootElement.querySelector('#toggle-projection');
+    prevVerse = rootElement.querySelector('#prev-verse');
+    nextVerse = rootElement.querySelector('#next-verse');
+    main = rootElement.querySelector('#verse-display ul');
+    libraryListContainer = rootElement.querySelector('#library-list ul');
+    favoritesListContainer = rootElement.querySelector('#favorites-list');
+    favoritesListRoot = favoritesListContainer?.querySelector('ul');
+    createPlaylistButton = rootElement.querySelector('#create-playlist');
+    previewContent = rootElement.querySelector('#preview');
+    previewLyrics = document.createElement('div');
+
+    if (previewContent) {
+        previewLyrics.id = 'preview-lyrics';
+        previewContent.appendChild(previewLyrics);
+    }
+
+    onIpc('projection:status', (isProjectionOn) => {
+        if (!toggleProjectionButton) {
+            return;
+        }
+
+        if (isProjectionOn) {
+            toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><rect width="10" height="10" x="3" y="3" rx="1.5" /></svg>';
+        } else {
+            toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z" /></svg>';
+        }
+
+        if (currentVerseIndex !== undefined) {
+            updateProjection();
+        }
     });
 
-ipcRenderer.on("projection:status", (isProjectionOn) => {
-    if (isProjectionOn) {
-        toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><rect width="10" height="10" x="3" y="3" rx="1.5" /></svg>';
-    } else {
-        toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z" /></svg>';
-    }
+    onIpc('black-screen', () => {
+        currentVerseIndex = undefined;
+        if (previewLyrics) {
+            previewLyrics.innerHTML = '';
+        }
+    });
 
-    if (currentVerseIndex !== undefined) {
+    onIpc('preferences:changed', (preferences) => {
+        applyPreviewPreferences(preferences);
+
+        if (currentVerseIndex !== undefined) {
+            updateProjection();
+        }
+    });
+
+    onIpc('projection:next', () => {
+        changeToNextVerse();
+    });
+
+    onIpc('projection:prev', () => {
+        changeToPrevVerse();
+    });
+
+    onIpc('library:list', (files) => {
+        createFileList(files, libraryListContainer);
+    });
+
+    onIpc('favorites:list', (favorites) => {
+        createFavoritesList(favorites);
+    });
+
+    onIpc('verse:change', (verse) => {
+        currentVerseIndex = verse;
         updateProjection();
+    });
+
+    on(toggleProjectionButton, 'click', toggleProjection);
+
+    on(nextVerse, 'click', () => {
+        changeToNextVerse();
+    });
+
+    on(prevVerse, 'click', () => {
+        changeToPrevVerse();
+    });
+
+    on(rootElement.querySelector('#black-screen'), 'click', () => {
+        if (previewLyrics) {
+            previewLyrics.innerHTML = '';
+        }
+
+        currentVerseIndex = undefined;
+        ipcRenderer.send('black-screen');
+    });
+
+    if (favoritesListRoot) {
+        ensureFavoritesSortable(favoritesListRoot, true);
     }
-})
 
-ipcRenderer.on("black-screen", () => {
-    currentVerseIndex = undefined;
-    if (previewLyrics) {
-        previewLyrics.innerHTML = '';
+    if (libraryListContainer) {
+        ensureLibrarySortable(libraryListContainer);
     }
-})
 
-ipcRenderer.on('preferences:changed', (preferences) => {
-    applyPreviewPreferences(preferences);
+    try {
+        const [preferences, state] = await Promise.all([
+            ipcRenderer.invoke('get-preferences'),
+            ipcRenderer.invoke('library:state'),
+        ]);
 
-    if (currentVerseIndex !== undefined) {
-        updateProjection();
+        if (!isMountCurrent()) {
+            return;
+        }
+
+        applyPreviewPreferences(preferences);
+
+        if (state?.library) {
+            createFileList(state.library, libraryListContainer);
+        }
+
+        if (state?.favorites) {
+            createFavoritesList(state.favorites);
+        }
+
+        if (currentSongPath) {
+            loadSong(currentSongPath);
+        }
+    } catch (error) {
+        if (!isMountCurrent()) {
+            return;
+        }
+
+        console.error('Failed to initialize library view', error);
     }
-});
+}
 
-ipcRenderer.on("projection:next", () => {
-    changeToNextVerse();
-})
+export async function unmount() {
+    resetCleanup();
+    if (favoritesSaveTimer) {
+        clearTimeout(favoritesSaveTimer);
+        favoritesSaveTimer = null;
+    }
 
-ipcRenderer.on("projection:prev", () => {
-    changeToPrevVerse();
-})
-
-ipcRenderer.on("library:list", (files) => {
-    createFileList(files, libraryListContainer);
-})
-
-ipcRenderer.on("favorites:list", (favorites) => {
-    createFavoritesList(favorites);
-})
-
-ipcRenderer.on("verse:change", (verse) => {
-    currentVerseIndex = verse;
-    updateProjection();
-})
+    mounted = false;
+    rootElement = null;
+    toggleProjectionButton = null;
+    prevVerse = null;
+    nextVerse = null;
+    main = null;
+    libraryListContainer = null;
+    favoritesListContainer = null;
+    favoritesListRoot = null;
+    createPlaylistButton = null;
+    previewContent = null;
+    previewLyrics = null;
+    libraryClickDelegated = false;
+    favoritesClickDelegated = false;
+    favoritesContextMenuDelegated = false;
+    mountContext = null;
+}
 
 function createFavoritesList(favorites) {
     if (!favoritesListRoot) {
@@ -609,6 +746,7 @@ function loadSong(songPath) {
         return;
     }
 
+    currentSongPath = songPath;
     main.innerHTML = "";
     const songData = JSON.parse(window.fs.readFileSync(songPath, 'utf8'));
     currentLyrics = expandSongForProjection(songData);
@@ -713,34 +851,4 @@ function changeToNextVerse() {
         currentVerseIndex++;
         updateProjection();
     }
-}
-
-toggleProjectionButton?.addEventListener('click', toggleProjection);
-
-nextVerse?.addEventListener('click', () => {
-    changeToNextVerse();
-})
-
-prevVerse?.addEventListener('click', () => {
-    changeToPrevVerse();
-})
-
-document.getElementById('black-screen')?.addEventListener('click', () => {
-    previewLyrics.innerText = '';
-    currentVerseIndex = undefined;
-    ipcRenderer.send('black-screen');
-});
-
-// document.addEventListener("DOMContentLoaded", function(event) { 
-//     createFavoritesList();
-//   });
-
-// Sortable.js
-
-if (favoritesListRoot) {
-    ensureFavoritesSortable(favoritesListRoot, true);
-}
-
-if (libraryListContainer) {
-    ensureLibrarySortable(libraryListContainer);
 }
