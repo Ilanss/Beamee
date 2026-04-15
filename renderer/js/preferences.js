@@ -4,6 +4,7 @@ let form = null;
 let saveButton = null;
 let statusElement = null;
 let mounted = false;
+const colorFieldIds = ['text-color', 'background-color'];
 
 const fallbackFonts = [
   'Arial',
@@ -67,6 +68,60 @@ const showStatus = (message, isError = false) => {
 
 const getField = (id) => rootElement?.querySelector(`#${id}`);
 
+const getColorTrigger = (id) => rootElement?.querySelector(`[data-color-trigger="${id}"]`);
+
+const getColorSwatch = (id) => rootElement?.querySelector(`[data-color-swatch="${id}"]`);
+
+const getColorValue = (id) => rootElement?.querySelector(`[data-color-value="${id}"]`);
+
+const syncColorFieldPreview = (id) => {
+  const input = getField(id);
+  const swatch = getColorSwatch(id);
+  const value = getColorValue(id);
+
+  if (!input) {
+    return;
+  }
+
+  const color = typeof input.value === 'string' && input.value ? input.value : '#000000';
+
+  if (swatch) {
+    swatch.style.backgroundColor = color;
+  }
+
+  if (value) {
+    value.textContent = color.toUpperCase();
+  }
+};
+
+const bindColorField = (id) => {
+  const input = getField(id);
+  const trigger = getColorTrigger(id);
+
+  if (!input || !trigger) {
+    return;
+  }
+
+  on(trigger, 'click', () => {
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+
+    input.click();
+  });
+
+  on(input, 'input', () => {
+    syncColorFieldPreview(id);
+  });
+
+  on(input, 'change', () => {
+    syncColorFieldPreview(id);
+  });
+
+  syncColorFieldPreview(id);
+};
+
 const addFontOption = (font) => {
   if (!font || !fontSelect) {
     return;
@@ -97,6 +152,10 @@ const setInputValue = (id, value) => {
 
   if (element) {
     element.value = value;
+  }
+
+  if (colorFieldIds.includes(id)) {
+    syncColorFieldPreview(id);
   }
 };
 
@@ -193,6 +252,8 @@ export async function mount(root, context = {}) {
   form = rootElement.querySelector('#preferences-form');
   saveButton = rootElement.querySelector('#save-preferences');
   statusElement = rootElement.querySelector('#preferences-status');
+
+  colorFieldIds.forEach(bindColorField);
 
   onIpc('preferences:changed', (preferences) => {
     applyPreferencesToForm(preferences);

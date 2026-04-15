@@ -27,11 +27,23 @@
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="grid gap-1.5">
         <label for="text-color" class="font-medium">Text Color</label>
-        <input type="color" id="text-color" name="text-color" class="h-11 w-full rounded-md border border-slate-300 bg-white p-1">
+        <div class="relative">
+          <button type="button" data-color-trigger="text-color" class="flex h-11 w-full items-center gap-3 rounded-md border border-slate-300 bg-white px-3 text-left">
+            <span data-color-swatch="text-color" class="h-6 w-6 shrink-0 rounded border border-slate-300"></span>
+            <span data-color-value="text-color" class="font-mono text-sm text-slate-600"></span>
+          </button>
+          <input type="color" id="text-color" name="text-color" class="sr-only">
+        </div>
       </div>
       <div class="grid gap-1.5">
         <label for="background-color" class="font-medium">Background Color</label>
-        <input type="color" id="background-color" name="background-color" class="h-11 w-full rounded-md border border-slate-300 bg-white p-1">
+        <div class="relative">
+          <button type="button" data-color-trigger="background-color" class="flex h-11 w-full items-center gap-3 rounded-md border border-slate-300 bg-white px-3 text-left">
+            <span data-color-swatch="background-color" class="h-6 w-6 shrink-0 rounded border border-slate-300"></span>
+            <span data-color-value="background-color" class="font-mono text-sm text-slate-600"></span>
+          </button>
+          <input type="color" id="background-color" name="background-color" class="sr-only">
+        </div>
       </div>
     </div>
 
