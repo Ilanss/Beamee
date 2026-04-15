@@ -40,7 +40,12 @@ const readHtml = (relativePath) => {
 
 const loadModule = async (relativePath) => {
   if (!moduleCache.has(relativePath)) {
-    moduleCache.set(relativePath, import(new URL(relativePath, import.meta.url)));
+    const modulePromise = import(new URL(relativePath, import.meta.url)).catch((error) => {
+      moduleCache.delete(relativePath);
+      throw error;
+    });
+
+    moduleCache.set(relativePath, modulePromise);
   }
 
   return moduleCache.get(relativePath);

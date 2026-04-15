@@ -1,6 +1,7 @@
 let rootElement = null;
 let fontSelect = null;
 let form = null;
+let saveButton = null;
 let statusElement = null;
 let mounted = false;
 
@@ -64,8 +65,10 @@ const showStatus = (message, isError = false) => {
   statusElement.style.color = isError ? '#b91c1c' : '#166534';
 };
 
+const getField = (id) => rootElement?.querySelector(`#${id}`);
+
 const addFontOption = (font) => {
-  if (!font) {
+  if (!font || !fontSelect) {
     return;
   }
 
@@ -81,12 +84,16 @@ const addFontOption = (font) => {
 };
 
 const populateFontOptions = (fontFamilies) => {
+  if (!fontSelect) {
+    return;
+  }
+
   fontSelect.innerHTML = '';
   fontFamilies.forEach(addFontOption);
 };
 
 const setInputValue = (id, value) => {
-  const element = rootElement?.querySelector(`#${id}`);
+  const element = getField(id);
 
   if (element) {
     element.value = value;
@@ -94,7 +101,7 @@ const setInputValue = (id, value) => {
 };
 
 const readNumericValue = (id, fallback, parser = Number.parseFloat) => {
-  const element = rootElement?.querySelector(`#${id}`);
+  const element = getField(id);
 
   if (!element) {
     return fallback;
@@ -120,6 +127,10 @@ const getAvailableFonts = async () => {
 };
 
 const applyPreferencesToForm = (preferences) => {
+  if (!fontSelect || !preferences) {
+    return false;
+  }
+
   currentPreferences = preferences;
 
   populateFontOptions(availableFonts);
@@ -134,30 +145,41 @@ const applyPreferencesToForm = (preferences) => {
   setInputValue('padding-bottom', preferences.paddingBottom);
   setInputValue('padding-left', preferences.paddingLeft);
   setInputValue('padding-right', preferences.paddingRight);
-};
 
-const loadPreferences = async () => {
-  try {
-    const preferences = await ipcRenderer.invoke('get-preferences');
-    applyPreferencesToForm(preferences);
-    showStatus('');
-  } catch (error) {
-    console.error('Failed to load preferences', error);
-    showStatus('Failed to load preferences.', true);
-  }
+  return true;
 };
 
 const readPreferencesFromForm = () => ({
-  fontFamily: fontSelect.value,
+  fontFamily: fontSelect?.value || currentPreferences?.fontFamily,
   fontSize: readNumericValue('font-size', currentPreferences?.fontSize, Number.parseInt),
-  textColor: rootElement?.querySelector('#text-color')?.value,
-  backgroundColor: rootElement?.querySelector('#background-color')?.value,
+  textColor: getField('text-color')?.value,
+  backgroundColor: getField('background-color')?.value,
   lineHeight: readNumericValue('line-height', currentPreferences?.lineHeight),
   paddingTop: readNumericValue('padding-top', currentPreferences?.paddingTop, Number.parseInt),
   paddingBottom: readNumericValue('padding-bottom', currentPreferences?.paddingBottom, Number.parseInt),
   paddingLeft: readNumericValue('padding-left', currentPreferences?.paddingLeft, Number.parseInt),
   paddingRight: readNumericValue('padding-right', currentPreferences?.paddingRight, Number.parseInt),
 });
+
+const savePreferencesFromForm = async () => {
+  try {
+    showStatus('Saving...');
+    const preferences = await ipcRenderer.invoke('save-preferences', readPreferencesFromForm());
+
+    if (isMountCurrent()) {
+      try {
+        applyPreferencesToForm(preferences);
+      } catch (refreshError) {
+        console.error('Saved preferences, but failed to refresh the form', refreshError);
+      }
+    }
+
+    showStatus('Preferences saved.');
+  } catch (error) {
+    console.error('Failed to save preferences', error);
+    showStatus('Failed to save preferences.', true);
+  }
+};
 
 export async function mount(root, context = {}) {
   if (mounted) {
@@ -169,24 +191,21 @@ export async function mount(root, context = {}) {
   rootElement = root;
   fontSelect = rootElement.querySelector('#font-family');
   form = rootElement.querySelector('#preferences-form');
+  saveButton = rootElement.querySelector('#save-preferences');
   statusElement = rootElement.querySelector('#preferences-status');
 
   onIpc('preferences:changed', (preferences) => {
     applyPreferencesToForm(preferences);
   });
 
+  on(saveButton, 'click', async () => {
+    await savePreferencesFromForm();
+  });
+
   on(form, 'submit', async (e) => {
     e.preventDefault();
 
-    try {
-      showStatus('Saving...');
-      const preferences = await ipcRenderer.invoke('save-preferences', readPreferencesFromForm());
-      applyPreferencesToForm(preferences);
-      showStatus('Preferences saved.');
-    } catch (error) {
-      console.error('Failed to save preferences', error);
-      showStatus('Failed to save preferences.', true);
-    }
+    await savePreferencesFromForm();
   });
 
   on(form, 'reset', (e) => {
@@ -201,7 +220,9 @@ export async function mount(root, context = {}) {
     try {
       showStatus('Restoring defaults...');
       const preferences = await ipcRenderer.invoke('restore-preferences');
-      applyPreferencesToForm(preferences);
+      if (isMountCurrent()) {
+        applyPreferencesToForm(preferences);
+      }
       showStatus('Defaults restored.');
     } catch (error) {
       console.error('Failed to restore default preferences', error);
@@ -210,16 +231,20 @@ export async function mount(root, context = {}) {
   });
 
   try {
-    const [fontFamilies, preferences] = await Promise.all([
-      getAvailableFonts(),
-      ipcRenderer.invoke('get-preferences'),
-    ]);
+    const fontFamilies = await getAvailableFonts();
 
     if (!isMountCurrent()) {
       return;
     }
 
     availableFonts = fontFamilies;
+
+    const preferences = await ipcRenderer.invoke('get-preferences');
+
+    if (!isMountCurrent()) {
+      return;
+    }
+
     applyPreferencesToForm(preferences);
     showStatus('');
   } catch (error) {
@@ -238,6 +263,7 @@ export async function unmount() {
   rootElement = null;
   fontSelect = null;
   form = null;
+  saveButton = null;
   statusElement = null;
   mountContext = null;
 }

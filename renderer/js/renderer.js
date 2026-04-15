@@ -54,6 +54,19 @@ function toggleProjection() {
     ipcRenderer.send('projection:toggle');
 }
 
+function setToggleProjectionIcon(isProjectionOn) {
+    if (!toggleProjectionButton) {
+        return;
+    }
+
+    if (isProjectionOn) {
+        toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><rect width="10" height="10" x="3" y="3" rx="1.5" /></svg>';
+        return;
+    }
+
+    toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z" /></svg>';
+}
+
 function applyPreviewPreferences(preferences) {
     if (!previewContent || !preferences) {
         return;
@@ -101,15 +114,7 @@ export async function mount(root, context = {}) {
     }
 
     onIpc('projection:status', (isProjectionOn) => {
-        if (!toggleProjectionButton) {
-            return;
-        }
-
-        if (isProjectionOn) {
-            toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><rect width="10" height="10" x="3" y="3" rx="1.5" /></svg>';
-        } else {
-            toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z" /></svg>';
-        }
+        setToggleProjectionIcon(isProjectionOn);
 
         if (currentVerseIndex !== undefined) {
             updateProjection();
@@ -137,14 +142,6 @@ export async function mount(root, context = {}) {
 
     onIpc('projection:prev', () => {
         changeToPrevVerse();
-    });
-
-    onIpc('library:list', (files) => {
-        createFileList(files, libraryListContainer);
-    });
-
-    onIpc('favorites:list', (favorites) => {
-        createFavoritesList(favorites);
     });
 
     onIpc('verse:change', (verse) => {
@@ -177,6 +174,13 @@ export async function mount(root, context = {}) {
 
     if (libraryListContainer) {
         ensureLibrarySortable(libraryListContainer);
+    }
+
+    try {
+        const isProjectionOn = await ipcRenderer.invoke('projection:is-on');
+        setToggleProjectionIcon(Boolean(isProjectionOn));
+    } catch (error) {
+        console.warn('Failed to load projection state', error);
     }
 
     try {
@@ -746,29 +750,60 @@ function loadSong(songPath) {
         return;
     }
 
-    currentSongPath = songPath;
-    main.innerHTML = "";
-    const songData = JSON.parse(window.fs.readFileSync(songPath, 'utf8'));
-    currentLyrics = expandSongForProjection(songData);
-    currentVerseIndex = undefined;
+    try {
+        const songData = JSON.parse(window.fs.readFileSync(songPath, 'utf8'));
 
-    currentLyrics.forEach((verse, i) => {
-        let li = document.createElement('li');
-        let formattedText = verse.text.replace(/\\n/g, '<br>');
-        li.innerHTML = `<p class="mt-2 text-xs uppercase">#${i + 1} ${verse.label || verse.type}</p>` + formattedText;
-        li.setAttribute('id', `verse-${i}`);
-        li.classList.add("bg-gray-100", "rounded-md", "p-2", "px-4", "pb-3", "hover:bg-gray-200", "active:bg-gray-300", "dark:bg-slate-800", "hover:dark:bg-slate-700")
+        currentSongPath = songPath;
+        main.innerHTML = '';
+        currentLyrics = expandSongForProjection(songData);
+        currentVerseIndex = undefined;
 
-        li.addEventListener('click', () => {
-            currentVerseIndex = i;
-            updateProjection();
+        currentLyrics.forEach((verse, i) => {
+            const li = document.createElement('li');
+            const formattedText = verse.text.replace(/\\n/g, '<br>');
+
+            li.innerHTML = `<p class="mt-2 text-xs uppercase">#${i + 1} ${verse.label || verse.type}</p>` + formattedText;
+            li.setAttribute('id', `verse-${i}`);
+            li.classList.add('bg-gray-100', 'rounded-md', 'p-2', 'px-4', 'pb-3', 'hover:bg-gray-200', 'active:bg-gray-300', 'dark:bg-slate-800', 'hover:dark:bg-slate-700');
+
+            li.addEventListener('click', () => {
+                currentVerseIndex = i;
+                updateProjection();
+            });
+
+            main.appendChild(li);
         });
 
-        main.appendChild(li);
-    })
+        document.querySelector('#song-name').innerText = songData.name;
+        ipcRenderer.send('song:loaded', currentLyrics.length);
+        if (previewLyrics) {
+            previewLyrics.innerHTML = '';
+        }
+    } catch (error) {
+        console.error('Failed to load song', error);
+        currentSongPath = null;
+        currentLyrics = [];
+        currentVerseIndex = undefined;
+        renderSongPlaceholder();
+    }
+}
 
-    document.querySelector('#song-name').innerText = songData.name;
-    ipcRenderer.send('song:loaded', currentLyrics.length);
+function renderSongPlaceholder() {
+    if (!main || !rootElement) {
+        return;
+    }
+
+    main.innerHTML = `
+        <div class="text-center pt-16 text-lg font-bold">
+          <p></p><i class="bi bi-arrow-left pr-3"></i>Select a song</p>
+        </div>
+    `;
+
+    const songName = rootElement.querySelector('#song-name');
+    if (songName) {
+        songName.innerText = '';
+    }
+
     if (previewLyrics) {
         previewLyrics.innerHTML = '';
     }

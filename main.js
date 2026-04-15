@@ -105,6 +105,15 @@ const resolveSongRecord = (songId) => {
     };
 };
 
+const ensureLibraryDataLoaded = () => {
+    if (libraryState) {
+        return;
+    }
+
+    migrationResult = libraryController.migrateLibrarySongs(appDataPaths.library, appDataPaths.baseDir);
+    libraryState = libraryController.buildLibraryState(appDataPaths.library);
+};
+
 const loadFavorites = () => {
     const favorites = readJsonFile(appDataPaths.favorites, []);
 
@@ -244,7 +253,7 @@ const createMainWindow = () => {
             {
               label: 'Preferences',
               click: () => {
-                mainWindow.webContents.send('navigate', 'settings');
+                navigateMainWindow('settings');
               },
               accelerator: 'CmdOrCtrl+,'
             },
@@ -325,7 +334,7 @@ const createMainWindow = () => {
       ]);
     
       Menu.setApplicationMenu(menu);
-    
+
     if (isDev) {
         mainWindow.webContents.openDevTools();
     }
@@ -333,23 +342,22 @@ const createMainWindow = () => {
     mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
 
     mainWindow.webContents.on('did-finish-load', () => {
-        migrationResult = libraryController.migrateLibrarySongs(appDataPaths.library, appDataPaths.baseDir);
-        libraryState = libraryController.buildLibraryState(appDataPaths.library);
-        mainWindow.webContents.send('library:list', libraryState.tree);
-
-        const favorites = loadFavorites();
-        mainWindow.webContents.send('favorites:list', favorites);
-        // loadFavorites().then(favorites => {
-        //     mainWindow.webContents.send('favorites:list', favorites);
-        // }).catch(err => {
-        //     console.error('Error loading favorites:', err);
-        // });
+        ensureLibraryDataLoaded();
     });
 
     // Open the DevTools.
     // mainWindow.webContents.openDevTools()
 
 }
+
+const navigateMainWindow = (routeName) => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        return;
+    }
+
+    const route = routeName === 'settings' ? 'settings' : 'library';
+    mainWindow.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(`#${route}`)}`);
+};
 
 const createProjectorWindow = () => {
     let externalDisplay = null;
@@ -539,10 +547,16 @@ ipcMain.handle('get-preferences', () => {
 });
 
 ipcMain.handle('library:state', () => {
+    ensureLibraryDataLoaded();
+
     return {
         library: libraryState?.tree || [],
         favorites: loadFavorites(),
     };
+});
+
+ipcMain.handle('projection:is-on', () => {
+    return isProjectionOn;
 });
 
 ipcMain.on('song:loaded', (event, verseCount) => {
