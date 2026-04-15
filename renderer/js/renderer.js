@@ -291,6 +291,7 @@ function createFileList(files, container) {
             details.appendChild(ul);
 
             li.appendChild(details);
+            enableFolderToggleFallback(details, summary);
 
             // li.innerText = file.name;
             // let ul = document.createElement('ul');
@@ -332,7 +333,6 @@ function createFavoriteSongItem(song) {
     li.dataset.favoriteDisplayName = typeof song?.displayName === 'string' ? song.displayName : '';
     li.classList.add('draggable');
 
-    a.classList.add('flex', 'items-center', 'gap-2', 'min-w-0');
     icon.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
     <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
     </svg>`;
@@ -358,7 +358,6 @@ function createFavoriteFolderItem(favorite, options = {}) {
     li.dataset.favoriteKind = 'folder';
     li.dataset.favoriteName = folderName;
 
-    summary.classList.add('flex', 'items-center', 'gap-2', 'min-w-0');
     icon.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
@@ -373,6 +372,7 @@ function createFavoriteFolderItem(favorite, options = {}) {
     li.appendChild(details);
 
     enableFavoriteFolderDropOpen(details, summary);
+    enableFolderToggleFallback(details, summary);
     if (isEditing) {
         details.open = true;
         setTimeout(() => {
@@ -621,7 +621,13 @@ function ensureFavoritesSortable(listElement, allowFolderMoves) {
         group: {
             name: 'favorites',
             pull: true,
-            put: ['library', 'favorites'],
+            put: (to, from, dragged) => {
+                if (allowFolderMoves) {
+                    return true;
+                }
+
+                return dragged?.dataset?.favoriteKind !== 'folder';
+            },
         },
         animation: 150,
         draggable: 'li',
@@ -629,13 +635,6 @@ function ensureFavoritesSortable(listElement, allowFolderMoves) {
         onUpdate: scheduleFavoritesSave,
         onRemove: scheduleFavoritesSave,
         onEnd: scheduleFavoritesSave,
-        onMove: (evt) => {
-            if (allowFolderMoves) {
-                return true;
-            }
-
-            return evt.dragged?.dataset?.favoriteKind !== 'folder';
-        }
     });
 }
 
@@ -673,6 +672,29 @@ function enableFavoriteFolderDropOpen(details, summary) {
 
     summary.addEventListener('dragenter', openFolder);
     summary.addEventListener('dragover', openFolder);
+}
+
+function enableFolderToggleFallback(details, summary) {
+    if (!details || !summary) {
+        return;
+    }
+
+    summary.addEventListener('click', (event) => {
+        const target = event.target instanceof Element ? event.target : null;
+
+        if (target?.closest('input, button, textarea, select, a')) {
+            return;
+        }
+
+        event.preventDefault();
+        details.open = !details.open;
+    });
+
+    summary.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+        }
+    });
 }
 
 function scheduleFavoritesSave() {
