@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
+const songSchema = require('./songSchema.js');
 
-const configPath = './assets/json';
+const configPath = path.join(__dirname, '../json/config.json');
+
+const resolveProjectPath = (relativePath) => path.resolve(__dirname, '..', '..', relativePath);
 
 const readFile = (filePath) => {
     try {
@@ -15,6 +18,7 @@ const readFile = (filePath) => {
 
 const writeFile = (filePath, content) => {
     try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
         fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
         console.log(`File written successfully: ${filePath}`);
     } catch (err) {
@@ -23,16 +27,54 @@ const writeFile = (filePath, content) => {
 };
 
 const songNaming = (name) => {
-    // TODO normalize name for file naming
-    // TODO check if available with getSongFromFilename
-    // TODO If not add an identifier to it and check again (use while loop)
-    // TODO rename file
-    // TODO search and rename every instances of the name in library.json and favorites.json
+    const normalized = songSchema.normalizeId(name, 'song');
+
+    let candidate = normalized;
+    let counter = 1;
+
+    while (getSongFromFilename(candidate)) {
+        candidate = `${normalized}-${counter++}`;
+    }
+
+    return candidate;
 }
 
 const getSongFromFilename = (filename) => {
-    // TODO search file in library adding the .json format
-    // TODO if found return the data, if not return null
+    const config = getConfig() || {};
+    const libraryRoot = resolveProjectPath(config.libraryPath || './library');
+    const targetFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+
+    const findInDir = (dir) => {
+        if (!fs.existsSync(dir)) {
+            return null;
+        }
+
+        const files = fs.readdirSync(dir);
+
+        for (const file of files) {
+            const filePath = path.join(dir, file);
+            const stat = fs.statSync(filePath);
+
+            if (stat.isDirectory()) {
+                const result = findInDir(filePath);
+                if (result) {
+                    return result;
+                }
+                continue;
+            }
+
+            if (file === targetFilename || path.basename(filePath, '.json') === filename) {
+                const song = readFile(filePath);
+                if (song && typeof song === 'object') {
+                    return song;
+                }
+            }
+        }
+
+        return null;
+    };
+
+    return findInDir(libraryRoot);
 }
 
 const getConfig = () => {

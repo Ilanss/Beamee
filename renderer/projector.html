@@ -13,6 +13,22 @@
 
     <script>
 
+        const applyPreferences = (preferences) => {
+          if (!preferences) {
+            return;
+          }
+
+          document.body.style.fontFamily = preferences.fontFamily;
+          document.body.style.fontSize = `${preferences.fontSize}px`;
+          document.body.style.color = preferences.textColor;
+          document.body.style.backgroundColor = preferences.backgroundColor;
+          document.body.style.lineHeight = String(preferences.lineHeight);
+          document.body.style.paddingTop = `${preferences.paddingTop}px`;
+          document.body.style.paddingBottom = `${preferences.paddingBottom}px`;
+          document.body.style.paddingLeft = `${preferences.paddingLeft}px`;
+          document.body.style.paddingRight = `${preferences.paddingRight}px`;
+        };
+
         ipcRenderer.on('display-lyrics', (lyrics) => {
           document.getElementById('lyrics').innerHTML = `<p>${lyrics}</p>`;
         });
@@ -20,12 +36,12 @@
         ipcRenderer.on('black-screen', () => {
           document.getElementById('lyrics').innerHTML = '';
         });
+
+        ipcRenderer.on('preferences:changed', (preferences) => {
+          applyPreferences(preferences);
+        });
     
-        const preferences = ipcRenderer.sendSync('get-preferences');
-        document.body.style.fontFamily = preferences.fontFamily;
-        document.body.style.fontSize = `${preferences.fontSize}px`;
-        document.body.style.color = preferences.textColor;
-        document.body.style.backgroundColor = preferences.backgroundColor;
+        ipcRenderer.invoke('get-preferences').then(applyPreferences);
       </script>
     
 </body>

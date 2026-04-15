@@ -8,7 +8,7 @@ body {
 
 /* GRID LAYOUT */
 
-  .wrapper {  display: grid;
+.wrapper {  display: grid;
     grid-template-columns: 1fr 2fr 1.5fr;
     grid-template-rows: 1fr max-content;
     gap: 0px 0px; 
@@ -23,7 +23,7 @@ body {
   
   .sidebar { grid-area: sidebar; }
   
-  .preview-box { grid-area: preview-box; }
+.preview-box { grid-area: preview-box; }
   
   #verse-display { grid-area: verse-display; }
     
@@ -36,6 +36,23 @@ body {
 
 #verse-display {
   overflow-y: scroll;
+}
+
+#preview-box {
+  min-height: 0;
+}
+
+#preview {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+}
+
+#preview-lyrics {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 /* .tooltip {

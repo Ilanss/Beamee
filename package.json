@@ -6,8 +6,11 @@
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
+    "watch": "npx electronmon .",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "watch-tailwind": "npx @tailwindcss/cli -i ./renderer/css/style.css -o ./renderer/css/output.css --watch",
+    "build-tailwind": "npx @tailwindcss/cli -i ./renderer/css/style.css -o ./renderer/css/output.css"
   },
   "author": "Ilans",
   "license": "ISC",

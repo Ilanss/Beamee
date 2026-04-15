@@ -7,18 +7,208 @@ const fs = require('fs'); // TODO after rework it should required only in file c
 const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut } = require('electron');
 
 // Controller imports
-const songController = require('./assets/js/songController.js');
-const fileController = require('./assets/js/fileController.js');
+const libraryController = require('./assets/js/libraryController.js');
+const { DEFAULT_PREFERENCES, mergePreferences, normalizePreferences } = require('./assets/js/preferencesStore.js');
 
 const isDev = !app.isPackaged;
 
-const songLibraryLocation = path.join(__dirname, "library");
-const favoritesFile = path.join(__dirname, "favorites.json");
 let isProjectionOn = false;
 let projectorWindow;
 let mainWindow;
+let prefWindow;
+let appDataPaths;
+let migrationResult;
+let libraryState;
 
 let lastVerseCount;
+
+const getAppDataPaths = () => {
+    const baseDir = app.getPath('userData');
+
+    return {
+        baseDir,
+        library: path.join(baseDir, 'library'),
+        favorites: path.join(baseDir, 'favorites.json'),
+        preferences: path.join(baseDir, 'preferences.json'),
+    };
+};
+
+const ensureDirSync = (dir) => {
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+    }
+};
+
+const migrateLegacyData = (paths) => {
+    const legacyLibraryPath = path.join(__dirname, 'library');
+    const legacyFavoritesPath = path.join(__dirname, 'favorites.json');
+
+    if (!fs.existsSync(paths.library) && fs.existsSync(legacyLibraryPath)) {
+        fs.cpSync(legacyLibraryPath, paths.library, { recursive: true });
+    }
+
+    if (!fs.existsSync(paths.favorites) && fs.existsSync(legacyFavoritesPath)) {
+        fs.copyFileSync(legacyFavoritesPath, paths.favorites);
+    }
+
+};
+
+const bootstrapAppData = () => {
+    const paths = getAppDataPaths();
+
+    ensureDirSync(paths.baseDir);
+    migrateLegacyData(paths);
+    ensureDirSync(paths.library);
+
+    if (!fs.existsSync(paths.favorites)) {
+        fs.writeFileSync(paths.favorites, '[]');
+    }
+
+    if (!fs.existsSync(paths.preferences)) {
+        fs.writeFileSync(paths.preferences, JSON.stringify(DEFAULT_PREFERENCES, null, 2));
+    }
+
+    return paths;
+};
+
+const readJsonFile = (filePath, fallback) => {
+    try {
+        if (!fs.existsSync(filePath)) {
+            return fallback;
+        }
+
+        return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch (err) {
+        console.error(`Error reading JSON file: ${filePath}`, err);
+        return fallback;
+    }
+};
+
+const saveJsonFile = (filePath, data) => {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+};
+
+const resolveSongRecord = (songId) => {
+    if (!libraryState || !songId) {
+        return null;
+    }
+
+    const song = libraryState.songsById.get(songId);
+
+    if (!song) {
+        return null;
+    }
+
+    return {
+        id: song.id,
+        path: song.path,
+        name: song.name,
+    };
+};
+
+const loadFavorites = () => {
+    const favorites = readJsonFile(appDataPaths.favorites, []);
+
+    if (!Array.isArray(favorites)) {
+        return [];
+    }
+
+    const migration = libraryController.migrateFavoritesIds(favorites, migrationResult?.idMap || new Map());
+
+    if (migration.changed) {
+        saveJsonFile(appDataPaths.favorites, migration.favorites);
+    }
+
+    return migration.favorites
+        .map((favorite) => {
+            const safeFavorite = favorite && typeof favorite === 'object' ? favorite : {};
+
+            if (Array.isArray(safeFavorite.songs)) {
+                return {
+                    ...safeFavorite,
+                    songs: safeFavorite.songs
+                        .map((songRef) => {
+                            const songId = typeof songRef === 'string' ? songRef : songRef?.id;
+                            const song = resolveSongRecord(songId);
+
+                            if (!song) {
+                                return null;
+                            }
+
+                            return {
+                                ...song,
+                                displayName: typeof songRef === 'object' && songRef && typeof songRef.displayName === 'string'
+                                    ? songRef.displayName
+                                    : '',
+                            };
+                        })
+                        .filter(Boolean)
+                };
+            }
+
+            if (!safeFavorite.id) {
+                return null;
+            }
+
+            const song = resolveSongRecord(safeFavorite.id);
+
+            if (!song) {
+                return null;
+            }
+
+            return {
+                ...safeFavorite,
+                ...song,
+                displayName: typeof safeFavorite.displayName === 'string' ? safeFavorite.displayName : '',
+            };
+        })
+        .filter(Boolean);
+};
+
+const saveFavorites = (favorites) => {
+    if (!Array.isArray(favorites)) {
+        return { ok: false, error: 'Favorites data was invalid.' };
+    }
+
+    try {
+        saveJsonFile(appDataPaths.favorites, favorites);
+        return { ok: true };
+    } catch (error) {
+        console.error('Error saving favorites:', error);
+        return { ok: false, error: error?.message || 'Unknown error saving favorites.' };
+    }
+};
+
+const showFavoritesContextMenu = (window) => {
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const finish = (action) => {
+            if (resolved) {
+                return;
+            }
+
+            resolved = true;
+            resolve(action);
+        };
+
+        const menu = Menu.buildFromTemplate([
+            {
+                label: 'Rename',
+                click: () => finish('rename'),
+            },
+            {
+                label: 'Delete',
+                click: () => finish('delete'),
+            },
+        ]);
+
+        menu.popup({
+            window,
+            callback: () => finish(null),
+        });
+    });
+};
 
 const createMainWindow = () => {
     // Create the browser window.
@@ -125,7 +315,7 @@ const createMainWindow = () => {
                     label: 'Black screen',
                     click: () => { 
                         if (isProjectionOn) {
-                            projectorWindow.webContents.send('black-screen'); 
+                            projectorWindow?.webContents.send('black-screen');
                         }
                         mainWindow.webContents.send('black-screen'); 
                     },
@@ -144,30 +334,11 @@ const createMainWindow = () => {
     mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
 
     mainWindow.webContents.on('did-finish-load', () => {
-        listFilesAndFolders(songLibraryLocation).then(files => {
-            mainWindow.webContents.send('library:list', files);
-        }).catch(err => {
-            console.error('Error listing files and folders:', err);
-        });
+        migrationResult = libraryController.migrateLibrarySongs(appDataPaths.library, appDataPaths.baseDir);
+        libraryState = libraryController.buildLibraryState(appDataPaths.library);
+        mainWindow.webContents.send('library:list', libraryState.tree);
 
-        let favorites = JSON.parse(fs.readFileSync(favoritesFile, 'utf8'));
-
-        favorites.forEach(favorite => {
-            favorite.songs = favorite.songs.map(songId => {
-                let songPath = findSongPath(songId);
-                if(songPath != null) {
-                    return {
-                        id: songId,
-                        path: songPath,
-                        name: getSongName(songPath)
-                    };
-                } else {
-                    return false;
-                }
-            });
-        });
-        // console.log(JSON.parse(fs.readFileSync(favoritesFile, 'utf8')));
-        console.log(favorites[0]);
+        const favorites = loadFavorites();
         mainWindow.webContents.send('favorites:list', favorites);
         // loadFavorites().then(favorites => {
         //     mainWindow.webContents.send('favorites:list', favorites);
@@ -180,36 +351,6 @@ const createMainWindow = () => {
     // mainWindow.webContents.openDevTools()
 
 }
-
-const getSongName = (songPath) => {
-    const songData = JSON.parse(fs.readFileSync(songPath, 'utf-8'));
-    return songData.name;
-};
-
-const findSongPath = (songId) => {
-    let songPath = null;
-    
-    // Implement logic to find the song file path. 
-    // For example, you can use fs.readdirSync to traverse directories if needed.
-    
-    function findInDir(dir, songId) {
-        const files = fs.readdirSync(dir);
-        for (let file of files) {
-            let filePath = path.join(dir, file);
-            let stat = fs.statSync(filePath);
-            if (stat.isDirectory()) {
-                let result = findInDir(filePath, songId);
-                if (result) return result;
-            } else if (path.basename(filePath, path.extname(filePath)) === songId) {
-                return filePath;
-            }
-        }
-        return null;
-    }
-    
-    songPath = findInDir(songLibraryLocation, songId);
-    return songPath;
-};
 
 const createProjectorWindow = () => {
     let externalDisplay = null;
@@ -256,6 +397,7 @@ const createProjectorWindow = () => {
     projectorWindow.on('close', () => {
         isProjectionOn = false;
         mainWindow.webContents.send('projection:status', isProjectionOn);
+        projectorWindow = null;
     })
 
     projectorWindow.webContents.on('did-finish-load', () => {
@@ -269,7 +411,17 @@ const createProjectorWindow = () => {
 }
 
 function createPreferencesWindow() {
-    let prefWindow = new BrowserWindow({
+    if (prefWindow) {
+        if (prefWindow.isMinimized()) {
+            prefWindow.restore();
+        }
+
+        prefWindow.show();
+        prefWindow.focus();
+        return prefWindow;
+    }
+
+    prefWindow = new BrowserWindow({
       width: 400,
       height: 300,
       webPreferences: {
@@ -279,30 +431,42 @@ function createPreferencesWindow() {
     }
 });
   
-    prefWindow.loadFile('renderer/preferences.html');
+    prefWindow.loadFile(path.join(__dirname, 'renderer/preferences.html'));
     if (isDev) {
-        mainWindow.webContents.openDevTools();
+        prefWindow.webContents.openDevTools();
     }
+
+    prefWindow.on('closed', () => {
+        prefWindow = null;
+    });
   
 }
   
-const preferencesFile = path.join(__dirname, 'preferences.json');
-
 function loadPreferences() {
-  if (fs.existsSync(preferencesFile)) {
-    const preferences = JSON.parse(fs.readFileSync(preferencesFile, 'utf8'));
-    return preferences;
-  }
-  return {
-    fontFamily: 'Arial',
-    fontSize: '24',
-    textColor: '#FFFFFF',
-    backgroundColor: '#000000',
-  };
+  return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
+}
+
+function savePreferences(preferences) {
+    const currentPreferences = loadPreferences();
+    const nextPreferences = mergePreferences(currentPreferences, preferences);
+
+    fs.writeFileSync(appDataPaths.preferences, JSON.stringify(nextPreferences, null, 2), 'utf8');
+
+    for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send('preferences:changed', nextPreferences);
+    }
+
+    return nextPreferences;
+}
+
+function restoreDefaultPreferences() {
+    return savePreferences(DEFAULT_PREFERENCES);
 }
 
 function registerShortcuts(verseCount) {
-    for(let i = 0; i <= verseCount; i++) {
+    const count = Number.isFinite(verseCount) ? verseCount : 0;
+
+    for (let i = 1; i <= count; i++) {
         globalShortcut.register(`${i}`, () => {
             mainWindow.webContents.send('verse:change', i - 1);
         });
@@ -312,7 +476,9 @@ function registerShortcuts(verseCount) {
 }
 
 function unregisterShortcuts(verseCount) {
-    for(let i = 0; i <= verseCount; i++) {
+    const count = Number.isFinite(verseCount) ? verseCount : 0;
+
+    for (let i = 1; i <= count; i++) {
         globalShortcut.unregister(`${i}`);
     }
 }
@@ -322,51 +488,6 @@ function unregisterShortcuts(verseCount) {
 //         const favoritesList = JSON.parse(fs.readFileSync(favoritesFile, 'utf8'));
 //     })
 // }
-
-function listFilesAndFolders(directoryPath) {
-    return new Promise((resolve, reject) => {
-        fs.readdir(directoryPath, { withFileTypes: true }, async (err, files) => {
-            if (err) {
-                reject(err);
-            } else {
-                const result = [];
-                for (const file of files) {
-                    if (file.name.startsWith('.')) {
-                        // Exclude hidden files
-                        continue;
-                    }
-                    const fullPath = path.join(directoryPath, file.name);
-                    if (file.isDirectory()) {
-                        try {
-                            const subFilesAndFolders = await listFilesAndFolders(fullPath);
-                            result.push({
-                                name: file.name,
-                                path: fullPath,
-                                isFile: false,
-                                isDirectory: true,
-                                children: subFilesAndFolders
-                            });
-                        } catch (subErr) {
-                            reject(subErr);
-                        }
-                    } else {
-                        const songData = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
-
-                        result.push({
-                            name: file.name,
-                            id: songData.id,
-                            path: fullPath,
-                            isFile: true,
-                            isDirectory: false,
-                            children: []
-                        });
-                    }
-                }
-                resolve(result);
-            }
-        });
-    });
-}
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
@@ -387,30 +508,37 @@ ipcMain.on('display-lyrics', (event, lyrics) => {
     }
   });
 
-  ipcMain.on('black-screen', () => {
+ipcMain.on('black-screen', () => {
     if (isProjectionOn) {
       projectorWindow.webContents.send('black-screen');
     }
   });
+
+ipcMain.handle('favorites:context-menu', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+
+    if (!window) {
+        return null;
+    }
+
+    return showFavoritesContextMenu(window);
+});
+
+ipcMain.handle('favorites:update', (event, favorites) => {
+    return saveFavorites(favorites);
+});
   
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+    appDataPaths = bootstrapAppData();
     createMainWindow();
-
-    if (!fs.existsSync(path.join(__dirname, "library"))) {
-        fs.mkdirSync("library");
-    }
-
-    if (!fs.existsSync(path.join(__dirname, "favorites.json"))) {
-        fs.writeFileSync(path.join(__dirname, 'favorites.json'), '{}');
-    }
 
     app.on('activate', () => {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
-        if (BrowserWindow.getAllWindows().length === 0) createWindow()
+        if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     })
 })
 
@@ -421,18 +549,27 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
 })
 
-function savePreferences(preferences) {
-    fs.writeFileSync(preferencesFile, JSON.stringify(preferences, null, 2), 'utf8');
-}
-  
-ipcMain.on('save-preferences', (event, preferences) => {
-    savePreferences(preferences);
+ipcMain.handle('save-preferences', (event, preferences) => {
+    try {
+        return savePreferences(preferences);
+    } catch (error) {
+        console.error('Error saving preferences', error);
+        throw error;
+    }
 });
-  
-ipcMain.on('get-preferences', (event) => {
-    const preferences = loadPreferences();
-    event.returnValue = preferences;
-});  
+
+ipcMain.handle('restore-preferences', () => {
+    try {
+        return restoreDefaultPreferences();
+    } catch (error) {
+        console.error('Error restoring preferences', error);
+        throw error;
+    }
+});
+
+ipcMain.handle('get-preferences', () => {
+    return loadPreferences();
+});
 
 ipcMain.on('song:loaded', (event, verseCount) => {
     unregisterShortcuts(lastVerseCount);

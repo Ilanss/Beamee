@@ -5,6 +5,7 @@ module.exports = {
   packagerConfig: {
     asar: true,
   },
+  icon: 'renderer/img/beamee-icon.icns',
   rebuildConfig: {},
   makers: [
     {
