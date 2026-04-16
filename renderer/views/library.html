@@ -2,7 +2,17 @@
   <div class="sidebar menu menu-xs bg-base-200 w-full max-w-xs flex flex-col min-h-0">
     <img src="img/beamee-logo.png" alt="" class="object-contain h-10 object-left mb-2">
     <div class="library flex-1 min-h-0">
-      <div id="library-title" class="flex justify-between items-center">
+        <div
+          id="library-search-wrap"
+          class="flex items-center border px-3 gap-1 border-gray-500/30 h-8 rounded-full overflow-hidden max-w-md w-full my-2">
+          <input id="library-search" type="text" placeholder="Search"
+            class="w-full h-full outline-none text-gray-500 bg-transparent placeholder-gray-500 text-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="#6B7280">
+          <path
+            d="M13 3C7.489 3 3 7.489 3 13s4.489 10 10 10a9.95 9.95 0 0 0 6.322-2.264l5.971 5.971a1 1 0 1 0 1.414-1.414l-5.97-5.97A9.95 9.95 0 0 0 23 13c0-5.511-4.489-10-10-10m0 2c4.43 0 8 3.57 8 8s-3.57 8-8 8-8-3.57-8-8 3.57-8 8-8" />
+        </svg>
+      </div>
+      <div id="library-title" class="flex justify-between items-center gap-2 pb-2">
         <h2 class="prose">Library</h2>
         <a id="create-song-folder" class="hover:cursor-pointer tooltip tooltip-right" data-tip="Create a song folder">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -11,13 +21,15 @@
               d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
           </svg>
         </a>
+
+
       </div>
       <div id="library-list" class="overflow-y-scroll min-h-0 flex-1">
         <ul class=""></ul>
       </div>
     </div>
     <div class="favorites flex-none pt-4 h-1/4 min-h-0 flex flex-col">
-      <div id="favorites-title" class="flex justify-between items-center">
+      <div id="favorites-title" class="flex justify-between items-center pb-2">
         <h2 class="prose">Favorites</h2>
         <a id="create-playlist" class="hover:cursor-pointer tooltip tooltip-right" data-tip="Create a new playlist">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
@@ -74,8 +86,8 @@
       </button>
     </div>
     <div>
-      <button id="settings" data-route="settings" class="btn btn-sm btn-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-          fill="currentColor" class="size-6">
+      <button id="settings" data-route="settings" class="btn btn-sm btn-circle"><svg xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24" fill="currentColor" class="size-6">
           <path fill-rule="evenodd"
             d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
             clip-rule="evenodd" />
