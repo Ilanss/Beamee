@@ -2819,10 +2819,6 @@ html {
   height: 2.75rem;
 }
 
-.h-3\/5 {
-  height: 60%;
-}
-
 .h-4 {
   height: 1rem;
 }
@@ -2837,6 +2833,10 @@ html {
 
 .h-screen {
   height: 100vh;
+}
+
+.min-h-0 {
+  min-height: 0px;
 }
 
 .min-h-5 {
@@ -2871,6 +2871,10 @@ html {
   flex: 1 1 0%;
 }
 
+.flex-none {
+  flex: none;
+}
+
 .shrink-0 {
   flex-shrink: 0;
 }
@@ -2881,6 +2885,10 @@ html {
 
 .list-none {
   list-style-type: none;
+}
+
+.flex-col {
+  flex-direction: column;
 }
 
 .flex-wrap {
@@ -2917,6 +2925,10 @@ html {
 
 .overflow-hidden {
   overflow: hidden;
+}
+
+.overflow-y-scroll {
+  overflow-y: scroll;
 }
 
 .truncate {
