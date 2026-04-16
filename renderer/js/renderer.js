@@ -4,6 +4,7 @@ let prevVerse = null;
 let nextVerse = null;
 let main = null;
 let libraryListContainer = null;
+let librarySearchInput = null;
 let favoritesListContainer = null;
 let favoritesListRoot = null;
 let createPlaylistButton = null;
@@ -54,6 +55,63 @@ function toggleProjection() {
     ipcRenderer.send('projection:toggle');
 }
 
+function normalizeSearchText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+function addSearchPart(parts, value) {
+    if (typeof value === 'string' && value.trim()) {
+        parts.push(value.trim());
+    }
+}
+
+function deriveCollectionPrefix(value) {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return '';
+    }
+
+    return trimmed.replace(/(?:[-_\s]*\d+)$/, '');
+}
+
+function buildCollectionSearchAliases(collection) {
+    const aliases = [];
+    const prefixCandidates = [
+        collection?.reference,
+        deriveCollectionPrefix(collection?.collectionId),
+        collection?.collectionId,
+        collection?.name,
+    ];
+    const number = Number.isInteger(collection?.number) && collection.number > 0
+        ? String(collection.number)
+        : '';
+
+    prefixCandidates.forEach((prefix) => {
+        if (typeof prefix !== 'string' || !prefix.trim()) {
+            return;
+        }
+
+        const normalizedPrefix = prefix.trim();
+        aliases.push(normalizedPrefix);
+
+        if (number) {
+            aliases.push(`${normalizedPrefix} ${number}`);
+            aliases.push(`${normalizedPrefix}-${number}`);
+            aliases.push(`${normalizedPrefix}${number}`);
+        }
+    });
+
+    return aliases;
+}
+
 function setToggleProjectionIcon(isProjectionOn) {
     if (!toggleProjectionButton) {
         return;
@@ -102,6 +160,7 @@ export async function mount(root, context = {}) {
     nextVerse = rootElement.querySelector('#next-verse');
     main = rootElement.querySelector('#verse-display ul');
     libraryListContainer = rootElement.querySelector('#library-list ul');
+    librarySearchInput = rootElement.querySelector('#library-search');
     favoritesListContainer = rootElement.querySelector('#favorites-list');
     favoritesListRoot = favoritesListContainer?.querySelector('ul');
     createPlaylistButton = rootElement.querySelector('#create-playlist');
@@ -176,6 +235,10 @@ export async function mount(root, context = {}) {
         ensureLibrarySortable(libraryListContainer);
     }
 
+    on(librarySearchInput, 'input', () => {
+        applyLibrarySearchFilter();
+    });
+
     try {
         const isProjectionOn = await ipcRenderer.invoke('projection:is-on');
         setToggleProjectionIcon(Boolean(isProjectionOn));
@@ -229,6 +292,7 @@ export async function unmount() {
     nextVerse = null;
     main = null;
     libraryListContainer = null;
+    librarySearchInput = null;
     favoritesListContainer = null;
     favoritesListRoot = null;
     createPlaylistButton = null;
@@ -238,6 +302,88 @@ export async function unmount() {
     favoritesClickDelegated = false;
     favoritesContextMenuDelegated = false;
     mountContext = null;
+}
+
+function buildSongSearchText(songData, fileName) {
+    const parts = [];
+
+    addSearchPart(parts, songData?.name);
+    addSearchPart(parts, songData?.id);
+
+    if (typeof fileName === 'string' && fileName.trim()) {
+        addSearchPart(parts, fileName.replace(/\.[^.]+$/, ''));
+    }
+
+    (Array.isArray(songData?.collections) ? songData.collections : []).forEach((collection) => {
+        parts.push(...buildCollectionSearchAliases(collection));
+    });
+
+    return normalizeSearchText(
+        parts
+            .filter((part) => typeof part === 'string' && part.trim())
+            .join(' '),
+    );
+}
+
+function applyLibrarySearchFilter() {
+    if (!libraryListContainer) {
+        return;
+    }
+
+    const query = typeof librarySearchInput?.value === 'string'
+        ? normalizeSearchText(librarySearchInput.value)
+        : '';
+
+    Array.from(libraryListContainer.children).forEach((item) => {
+        if (item instanceof Element && item.tagName === 'LI') {
+            updateLibraryItemVisibility(item, query);
+        }
+    });
+}
+
+function updateLibraryItemVisibility(item, query) {
+    const searchActive = Boolean(query);
+    const kind = item.dataset.libraryKind;
+
+    if (kind === 'song') {
+        const searchableText = item.dataset.librarySearchText || '';
+        const matches = !searchActive || searchableText.includes(query);
+        item.hidden = !matches;
+        return matches;
+    }
+
+    const details = item.querySelector(':scope > details');
+    const childList = item.querySelector(':scope > details > ul');
+    let hasVisibleChild = false;
+
+    Array.from(childList?.children || []).forEach((child) => {
+        if (child instanceof Element && child.tagName === 'LI') {
+            if (updateLibraryItemVisibility(child, query)) {
+                hasVisibleChild = true;
+            }
+        }
+    });
+
+    if (searchActive) {
+        item.hidden = !hasVisibleChild;
+
+        if (details && hasVisibleChild) {
+            if (!Object.prototype.hasOwnProperty.call(details.dataset, 'searchOriginalOpen')) {
+                details.dataset.searchOriginalOpen = details.open ? 'true' : 'false';
+            }
+
+            details.open = true;
+        }
+    } else {
+        item.hidden = false;
+
+        if (details && Object.prototype.hasOwnProperty.call(details.dataset, 'searchOriginalOpen')) {
+            details.open = details.dataset.searchOriginalOpen === 'true';
+            delete details.dataset.searchOriginalOpen;
+        }
+    }
+
+    return !searchActive || hasVisibleChild;
 }
 
 function createFavoritesList(favorites) {
@@ -287,6 +433,7 @@ function createFileList(files, container) {
                 `;
 
             const ul = document.createElement('ul');
+            li.dataset.libraryKind = 'folder';
             details.appendChild(summary);
             details.appendChild(ul);
 
@@ -301,6 +448,8 @@ function createFileList(files, container) {
             ensureLibrarySortable(ul);
         } else {
             const songData = JSON.parse(window.fs.readFileSync(file.path, 'utf8'));
+            li.dataset.libraryKind = 'song';
+            li.dataset.librarySearchText = buildSongSearchText(songData, file.name);
             a.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
                 </svg>
@@ -315,6 +464,10 @@ function createFileList(files, container) {
 
         container.appendChild(li);
     });
+
+    if (container === libraryListContainer) {
+        applyLibrarySearchFilter();
+    }
 }
 
 function createFavoriteSongItem(song) {
