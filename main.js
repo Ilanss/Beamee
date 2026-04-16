@@ -4,10 +4,13 @@
 const path = require('path'); // TODO after rework it should required only in file controller
 // const os = require('os'); // TODO check if useful 
 const fs = require('fs'); // TODO after rework it should required only in file controller
-const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut, dialog } = require('electron');
+const archiver = require('archiver');
 
 // Controller imports
 const libraryController = require('./assets/js/libraryController.js');
+const fileController = require('./assets/js/fileController.js');
+const songSchema = require('./assets/js/songSchema.js');
 const { DEFAULT_PREFERENCES, mergePreferences, normalizePreferences } = require('./assets/js/preferencesStore.js');
 
 const isDev = !app.isPackaged;
@@ -18,6 +21,7 @@ let mainWindow;
 let appDataPaths;
 let migrationResult;
 let libraryState;
+let currentSongPath = null;
 
 let lastVerseCount;
 
@@ -85,6 +89,379 @@ const readJsonFile = (filePath, fallback) => {
 
 const saveJsonFile = (filePath, data) => {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+};
+
+const invalidateLibraryState = () => {
+    migrationResult = null;
+    libraryState = null;
+};
+
+const refreshLibraryState = () => {
+    invalidateLibraryState();
+    ensureLibraryDataLoaded();
+    return libraryState;
+};
+
+const notifyLibraryChanged = () => {
+    for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send('library:changed');
+    }
+};
+
+const getSongPathForId = (songId) => {
+    return libraryState?.songPathById?.get(songId) || path.join(appDataPaths.library, `${songId}.json`);
+};
+
+const getCurrentSongPath = () => currentSongPath;
+
+const isMac = process.platform === 'darwin';
+
+const collectJsonFilesFromDirectory = (directoryPath, basePath = directoryPath) => {
+    const files = [];
+
+    if (!fs.existsSync(directoryPath)) {
+        return files;
+    }
+
+    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+        if (entry.name.startsWith('.')) {
+            continue;
+        }
+
+        const fullPath = path.join(directoryPath, entry.name);
+
+        if (entry.isDirectory()) {
+            files.push(...collectJsonFilesFromDirectory(fullPath, basePath));
+            continue;
+        }
+
+        if (!entry.name.endsWith('.json')) {
+            continue;
+        }
+
+        files.push(path.relative(basePath, fullPath).split(path.sep).join('/'));
+    }
+
+    return files;
+};
+
+const expandImportSelection = (selectedPaths) => {
+    const files = [];
+    const seen = new Set();
+
+    (Array.isArray(selectedPaths) ? selectedPaths : []).forEach((selectedPath) => {
+        if (!selectedPath || seen.has(selectedPath)) {
+            return;
+        }
+
+        seen.add(selectedPath);
+
+        if (!fs.existsSync(selectedPath)) {
+            return;
+        }
+
+        const stat = fs.statSync(selectedPath);
+
+        if (stat.isDirectory()) {
+            collectJsonFilesFromDirectory(selectedPath).forEach((relativePath) => {
+                const absolutePath = path.join(selectedPath, relativePath);
+
+                if (!seen.has(absolutePath)) {
+                    seen.add(absolutePath);
+                    files.push(absolutePath);
+                }
+            });
+            return;
+        }
+
+        if (stat.isFile() && selectedPath.endsWith('.json')) {
+            files.push(selectedPath);
+        }
+    });
+
+    return files;
+};
+
+const exportSongJson = async (window, songPath) => {
+    if (!songPath) {
+        return { ok: false, error: 'No song is selected.' };
+    }
+
+    const song = fileController.readFile(songPath);
+
+    if (!song || typeof song !== 'object') {
+        return { ok: false, error: 'Selected song could not be read.' };
+    }
+
+    const defaultName = `${typeof song.name === 'string' && song.name.trim() ? song.name.trim() : path.basename(songPath, path.extname(songPath))}.json`;
+    const { canceled, filePath } = await dialog.showSaveDialog(window, {
+        defaultPath: defaultName,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+
+    if (canceled || !filePath) {
+        return { ok: true, canceled: true };
+    }
+
+    fileController.writeFile(filePath, song);
+    return { ok: true, filePath };
+};
+
+const exportLibraryZip = async (window) => {
+    ensureLibraryDataLoaded();
+
+    const { canceled, filePath } = await dialog.showSaveDialog(window, {
+        defaultPath: 'library.zip',
+        filters: [{ name: 'Zip archive', extensions: ['zip'] }],
+    });
+
+    if (canceled || !filePath) {
+        return { ok: true, canceled: true };
+    }
+
+    const songFiles = libraryController.walkLibrarySongFiles(appDataPaths.library);
+
+    await new Promise((resolve, reject) => {
+        const output = fs.createWriteStream(filePath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        output.on('close', resolve);
+        output.on('error', reject);
+        archive.on('error', reject);
+
+        archive.pipe(output);
+
+        songFiles.forEach((entry) => {
+            archive.file(entry.path, { name: entry.relativePath });
+        });
+
+        archive.finalize();
+    });
+
+    return { ok: true, filePath, count: songFiles.length };
+};
+
+const createImportedSongCopy = (song, sourcePath) => {
+    const baseName = typeof song.name === 'string' && song.name.trim()
+        ? song.name.trim()
+        : path.basename(sourcePath, path.extname(sourcePath));
+    const newId = fileController.songNaming(baseName || 'song');
+
+    return {
+        ...song,
+        id: newId,
+    };
+};
+
+const createImportedSongCopyWithReservedIds = (song, sourcePath, reservedIds) => {
+    const baseName = typeof song.name === 'string' && song.name.trim()
+        ? song.name.trim()
+        : path.basename(sourcePath, path.extname(sourcePath));
+    const normalized = songSchema.normalizeId(baseName || 'song', 'song');
+    let candidate = normalized;
+    let counter = 1;
+
+    while (reservedIds.has(candidate) || fileController.getSongFromFilename(candidate)) {
+        candidate = `${normalized}-${counter++}`;
+    }
+
+    reservedIds.add(candidate);
+
+    return {
+        ...song,
+        id: candidate,
+    };
+};
+
+const promptImportConflict = async (window, song, existingPath) => {
+    const result = await dialog.showMessageBox(window, {
+        type: 'question',
+        buttons: ['Overwrite All', 'Create Copies', 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        title: 'Song already exists',
+        message: `A song with id "${song.id}" already exists.`,
+        detail: `Existing file: ${existingPath}`,
+        noLink: true,
+    });
+
+    if (result.response === 0) {
+        return 'overwrite';
+    }
+
+    if (result.response === 1) {
+        return 'copy';
+    }
+
+    return 'cancel';
+};
+
+const buildImportCandidate = (filePath, songPathById) => {
+    const rawSong = fileController.readFile(filePath);
+
+    if (!rawSong || typeof rawSong !== 'object' || Array.isArray(rawSong)) {
+        return { ok: false, status: 'skipped', filePath, reason: 'invalid-json' };
+    }
+
+    const migratedSong = songSchema.migrateSongToV1(rawSong, { sourcePath: filePath });
+    const errors = songSchema.validateSong(migratedSong);
+
+    if (errors.length > 0) {
+        return { ok: false, status: 'skipped', filePath, reason: 'validation-failed', errors };
+    }
+
+    const existingPath = songPathById.get(migratedSong.id);
+    return {
+        ok: true,
+        status: existingPath ? 'conflict' : 'ready',
+        filePath,
+        targetPath: existingPath || getSongPathForId(migratedSong.id),
+        songId: migratedSong.id,
+        existingPath,
+        song: migratedSong,
+    };
+};
+
+const importSongsFromFiles = async (window, filePaths) => {
+    ensureLibraryDataLoaded();
+
+    const songPathById = new Map(libraryState?.songPathById || []);
+    const results = [];
+    const candidates = [];
+    const seenIds = new Set();
+    const firstCandidateById = new Map();
+    let hasAnyConflict = false;
+
+    for (const filePath of filePaths) {
+        const candidate = buildImportCandidate(filePath, songPathById);
+
+        if (!candidate.ok) {
+            results.push(candidate);
+            continue;
+        }
+
+        if (seenIds.has(candidate.songId)) {
+            candidate.batchConflict = true;
+            firstCandidateById.get(candidate.songId).batchConflict = true;
+            hasAnyConflict = true;
+        } else {
+            seenIds.add(candidate.songId);
+            firstCandidateById.set(candidate.songId, candidate);
+            candidate.batchConflict = Boolean(candidate.existingPath);
+            hasAnyConflict = hasAnyConflict || candidate.batchConflict;
+        }
+
+        candidates.push(candidate);
+    }
+
+    let conflictMode = 'overwrite';
+
+    if (hasAnyConflict) {
+        const conflictCount = candidates.filter((candidate) => candidate.batchConflict).length;
+        const conflictDecision = await dialog.showMessageBox(window, {
+            type: 'question',
+            buttons: ['Overwrite All', 'Create Copies', 'Cancel'],
+            defaultId: 0,
+            cancelId: 2,
+            title: 'Conflicting songs found',
+            message: `${conflictCount} song(s) in this import already exist or conflict with another selected file.`,
+            detail: 'Choose how to handle every conflict before any files are imported.',
+            noLink: true,
+        });
+
+        if (conflictDecision.response === 2) {
+            return {
+                ok: true,
+                canceled: true,
+                results: results.concat(candidates.map((candidate) => ({
+                    ok: false,
+                    status: 'skipped',
+                    filePath: candidate.filePath,
+                    reason: 'cancelled',
+                }))),
+                summary: { total: filePaths.length, imported: 0, skipped: filePaths.length },
+            };
+        }
+
+        conflictMode = conflictDecision.response === 1 ? 'copy' : 'overwrite';
+    }
+
+    const reservedIds = new Set(songPathById.keys());
+    let importedCount = 0;
+
+    for (const candidate of candidates) {
+        if (!candidate.ok) {
+            results.push(candidate);
+            continue;
+        }
+
+        let nextSong = candidate.song;
+        let targetPath = candidate.targetPath;
+
+        if (candidate.batchConflict && conflictMode === 'copy') {
+            nextSong = createImportedSongCopyWithReservedIds(candidate.song, candidate.filePath, reservedIds);
+            targetPath = getSongPathForId(nextSong.id);
+        } else {
+            reservedIds.add(nextSong.id);
+        }
+
+        fileController.writeFile(targetPath, nextSong);
+        songPathById.set(nextSong.id, targetPath);
+        importedCount += 1;
+
+        results.push({
+            ok: true,
+            status: candidate.batchConflict ? (conflictMode === 'copy' ? 'copied' : 'updated') : 'imported',
+            filePath: candidate.filePath,
+            targetPath,
+            songId: nextSong.id,
+        });
+    }
+
+    if (importedCount > 0) {
+        refreshLibraryState();
+        notifyLibraryChanged();
+    }
+
+    return {
+        ok: true,
+        results,
+        summary: {
+            total: results.length,
+            imported: importedCount,
+            skipped: results.length - importedCount,
+        },
+    };
+};
+
+const summarizeImportResults = (results) => {
+    const imported = results.filter((result) => result.ok).length;
+    const skipped = results.length - imported;
+    const skippedDetails = results
+        .filter((result) => !result.ok)
+        .map((result) => {
+            if (result.reason === 'validation-failed') {
+                return `${path.basename(result.filePath)}: invalid song schema`;
+            }
+
+            if (result.reason === 'invalid-json') {
+                return `${path.basename(result.filePath)}: invalid JSON`;
+            }
+
+            if (result.reason === 'cancelled') {
+                return `${path.basename(result.filePath)}: cancelled`;
+            }
+
+            return `${path.basename(result.filePath)}: skipped`;
+        });
+
+    return {
+        imported,
+        skipped,
+        details: skippedDetails,
+    };
 };
 
 const resolveSongRecord = (songId) => {
@@ -218,6 +595,194 @@ const showFavoritesContextMenu = (window) => {
     });
 };
 
+const showSongContextMenu = (window, songPath) => {
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const finish = (action) => {
+            if (resolved) {
+                return;
+            }
+
+            resolved = true;
+            resolve(action);
+        };
+
+        const menu = Menu.buildFromTemplate([
+            {
+                label: 'Export JSON',
+                click: async () => {
+                    try {
+                        await exportSongJson(window, songPath);
+                    } catch (error) {
+                        console.error('Error exporting song', error);
+                        await dialog.showMessageBox(window, {
+                            type: 'error',
+                            buttons: ['OK'],
+                            title: 'Export failed',
+                            message: error?.message || 'Unable to export song.',
+                        });
+                    } finally {
+                        finish('export-json');
+                    }
+                },
+            },
+        ]);
+
+        menu.popup({
+            window,
+            callback: () => finish(null),
+        });
+    });
+};
+
+const showImportDialog = async (window, properties) => {
+    return dialog.showOpenDialog(window, {
+        properties,
+        filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+};
+
+const handleImportSelection = async (window, selectedPaths) => {
+    try {
+        const importPaths = expandImportSelection(selectedPaths);
+
+        if (importPaths.length === 0) {
+            await dialog.showMessageBox(window, {
+                type: 'info',
+                buttons: ['OK'],
+                title: 'Import complete',
+                message: 'No JSON song files were found in the selected location(s).',
+            });
+
+            return { ok: true, imported: 0, results: [], summary: { total: 0, imported: 0, skipped: 0 } };
+        }
+
+        const importResult = await importSongsFromFiles(window, importPaths);
+        const summary = summarizeImportResults(importResult.results);
+
+        await dialog.showMessageBox(window, {
+            type: 'info',
+            buttons: ['OK'],
+            title: 'Import complete',
+            message: `Imported ${summary.imported} of ${importResult.summary.total} file(s).`,
+            detail: summary.details.length > 0 ? summary.details.join('\n') : undefined,
+        });
+
+        return importResult;
+    } catch (error) {
+        console.error('Error importing songs', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Import failed',
+            message: error?.message || 'Unable to import songs.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to import songs.' };
+    }
+};
+
+const handleImportSongs = async (window) => {
+    try {
+        const result = await showImportDialog(window, isMac
+            ? ['openFile', 'openDirectory', 'multiSelections']
+            : ['openFile', 'multiSelections']);
+
+        if (result.canceled || !Array.isArray(result.filePaths) || result.filePaths.length === 0) {
+            return { ok: true, canceled: true };
+        }
+
+        return handleImportSelection(window, result.filePaths);
+    } catch (error) {
+        console.error('Error importing songs', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Import failed',
+            message: error?.message || 'Unable to import songs.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to import songs.' };
+    }
+};
+
+const handleImportSongFolder = async (window) => {
+    try {
+        const result = await showImportDialog(window, ['openDirectory', 'multiSelections']);
+
+        if (result.canceled || !Array.isArray(result.filePaths) || result.filePaths.length === 0) {
+            return { ok: true, canceled: true };
+        }
+
+        return handleImportSelection(window, result.filePaths);
+    } catch (error) {
+        console.error('Error importing song folders', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Import failed',
+            message: error?.message || 'Unable to import song folders.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to import song folders.' };
+    }
+};
+
+const handleExportCurrentSong = async (window) => {
+    try {
+        const result = await exportSongJson(window, getCurrentSongPath());
+
+        if (!result.ok && !result.canceled) {
+            await dialog.showMessageBox(window, {
+                type: 'error',
+                buttons: ['OK'],
+                title: 'Export failed',
+                message: result.error || 'Unable to export song.',
+            });
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Error exporting song', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Export failed',
+            message: error?.message || 'Unable to export song.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to export song.' };
+    }
+};
+
+const handleExportLibraryZip = async (window) => {
+    try {
+        const result = await exportLibraryZip(window);
+
+        if (!result.ok && !result.canceled) {
+            await dialog.showMessageBox(window, {
+                type: 'error',
+                buttons: ['OK'],
+                title: 'Export failed',
+                message: result.error || 'Unable to export library.',
+            });
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Error exporting library', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Export failed',
+            message: error?.message || 'Unable to export library.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to export library.' };
+    }
+};
+
 const createMainWindow = () => {
     // Create the browser window.
     mainWindow = new BrowserWindow({
@@ -250,12 +815,54 @@ const createMainWindow = () => {
               accelerator: 'CmdOrCtrl+Shift+N'
             },
             { type: 'separator' },
+            ...(isMac ? [{
+              label: 'Import Songs...',
+              click: () => {
+                handleImportSongs(mainWindow).catch((error) => {
+                    console.error('Error importing songs', error);
+                });
+              },
+            }] : [
+              {
+                label: 'Import Songs...',
+                click: () => {
+                  handleImportSongs(mainWindow).catch((error) => {
+                      console.error('Error importing songs', error);
+                  });
+                },
+              },
+              {
+                label: 'Import Song Folder...',
+                click: () => {
+                  handleImportSongFolder(mainWindow).catch((error) => {
+                      console.error('Error importing song folders', error);
+                  });
+                },
+              },
+            ]),
+            {
+              label: 'Export Current Song JSON',
+              click: () => {
+                handleExportCurrentSong(mainWindow).catch((error) => {
+                    console.error('Error exporting song', error);
+                });
+              },
+            },
+            {
+              label: 'Export Library as Zip',
+              click: () => {
+                handleExportLibraryZip(mainWindow).catch((error) => {
+                    console.error('Error exporting library', error);
+                });
+              },
+            },
+            { type: 'separator' },
             {
               label: 'Preferences',
               click: () => {
                 navigateMainWindow('settings');
               },
-              accelerator: 'CmdOrCtrl+,'
+              accelerator: 'CmdOrCtrl+,',
             },
             { type: 'separator' },
             {
@@ -499,6 +1106,16 @@ ipcMain.handle('favorites:context-menu', async (event) => {
     return showFavoritesContextMenu(window);
 });
 
+ipcMain.handle('song:context-menu', async (event, songPath) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+
+    if (!window || !songPath) {
+        return null;
+    }
+
+    return showSongContextMenu(window, songPath);
+});
+
 ipcMain.handle('favorites:update', (event, favorites) => {
     return saveFavorites(favorites);
 });
@@ -557,6 +1174,10 @@ ipcMain.handle('library:state', () => {
 
 ipcMain.handle('projection:is-on', () => {
     return isProjectionOn;
+});
+
+ipcMain.on('song:selected', (event, songPath) => {
+    currentSongPath = typeof songPath === 'string' && songPath.trim() ? songPath : null;
 });
 
 ipcMain.on('song:loaded', (event, verseCount) => {
