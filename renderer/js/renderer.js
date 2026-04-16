@@ -48,6 +48,8 @@ let favoritesSaveTimer;
 let libraryClickDelegated = false;
 let favoritesClickDelegated = false;
 let favoritesContextMenuDelegated = false;
+let librarySongContextMenuDelegated = false;
+let favoritesSongContextMenuDelegated = false;
 let currentPreferences;
 let mountContext = null;
 
@@ -195,6 +197,34 @@ export async function mount(root, context = {}) {
         }
     });
 
+    onIpc('library:changed', async () => {
+        if (!isMountCurrent()) {
+            return;
+        }
+
+        try {
+            const state = await ipcRenderer.invoke('library:state');
+
+            if (!isMountCurrent()) {
+                return;
+            }
+
+            if (state?.library) {
+                createFileList(state.library, libraryListContainer);
+            }
+
+            if (state?.favorites) {
+                createFavoritesList(state.favorites);
+            }
+
+            if (currentSongPath) {
+                loadSong(currentSongPath);
+            }
+        } catch (error) {
+            console.warn('Failed to refresh library view', error);
+        }
+    });
+
     onIpc('projection:next', () => {
         changeToNextVerse();
     });
@@ -301,6 +331,8 @@ export async function unmount() {
     libraryClickDelegated = false;
     favoritesClickDelegated = false;
     favoritesContextMenuDelegated = false;
+    librarySongContextMenuDelegated = false;
+    favoritesSongContextMenuDelegated = false;
     mountContext = null;
 }
 
@@ -395,6 +427,8 @@ function createFavoritesList(favorites) {
     favoritesListRoot.innerHTML = '';
     ensureFavoritesSortable(favoritesListRoot, true);
     bindSongClickDelegation();
+    bindLibrarySongContextMenu();
+    bindFavoriteSongContextMenu();
     bindFavoriteContextMenu();
     bindCreatePlaylistButton();
 
@@ -411,6 +445,8 @@ function createFileList(files, container) {
     if (!libraryClickDelegated) {
         bindSongClickDelegation();
     }
+
+    bindLibrarySongContextMenu();
 
     ensureLibrarySortable(container);
     container.innerHTML = '';
@@ -566,6 +602,24 @@ function bindFavoriteContextMenu() {
     favoritesContextMenuDelegated = true;
 }
 
+function bindLibrarySongContextMenu() {
+    if (!libraryListContainer || librarySongContextMenuDelegated) {
+        return;
+    }
+
+    libraryListContainer.addEventListener('contextmenu', handleSongContextMenu);
+    librarySongContextMenuDelegated = true;
+}
+
+function bindFavoriteSongContextMenu() {
+    if (!favoritesListRoot || favoritesSongContextMenuDelegated) {
+        return;
+    }
+
+    favoritesListRoot.addEventListener('contextmenu', handleSongContextMenu);
+    favoritesSongContextMenuDelegated = true;
+}
+
 function bindCreatePlaylistButton() {
     if (!createPlaylistButton || createPlaylistButton.dataset.createFolderBound === 'true') {
         return;
@@ -589,7 +643,7 @@ function bindCreatePlaylistButton() {
 }
 
 function handleFavoriteContextMenu(event) {
-    const item = event.target.closest('li[data-song-path], li[data-favorite-kind="folder"]');
+    const item = event.target.closest('li[data-favorite-kind="folder"]');
 
     if (!item || !favoritesListRoot?.contains(item)) {
         return;
@@ -609,6 +663,19 @@ function handleFavoriteContextMenu(event) {
                 deleteFavoriteItem(item);
             }
         })
+        .catch(() => {});
+}
+
+function handleSongContextMenu(event) {
+    const item = event.target.closest('li[data-song-path]');
+
+    if (!item || !(libraryListContainer?.contains(item) || favoritesListRoot?.contains(item))) {
+        return;
+    }
+
+    event.preventDefault();
+
+    ipcRenderer.invoke('song:context-menu', item.dataset.songPath)
         .catch(() => {});
 }
 
@@ -929,6 +996,7 @@ function loadSong(songPath) {
         const songData = JSON.parse(window.fs.readFileSync(songPath, 'utf8'));
 
         currentSongPath = songPath;
+        ipcRenderer.send('song:selected', songPath);
         main.innerHTML = '';
         currentLyrics = expandSongForProjection(songData);
         currentVerseIndex = undefined;
@@ -957,6 +1025,7 @@ function loadSong(songPath) {
     } catch (error) {
         console.error('Failed to load song', error);
         currentSongPath = null;
+        ipcRenderer.send('song:selected', null);
         currentLyrics = [];
         currentVerseIndex = undefined;
         renderSongPlaceholder();

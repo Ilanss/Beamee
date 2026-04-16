@@ -15,6 +15,7 @@
   "author": "Ilans",
   "license": "ISC",
   "dependencies": {
+    "archiver": "^7.0.1",
     "electron-squirrel-startup": "^1.0.1",
     "sortablejs": "^1.15.2"
   },

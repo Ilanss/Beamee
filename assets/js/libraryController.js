@@ -96,6 +96,40 @@ const walkJsonFiles = (directoryPath) => {
     return files;
 };
 
+const walkLibrarySongFiles = (directoryPath, basePath = directoryPath) => {
+    const files = [];
+
+    if (!fs.existsSync(directoryPath)) {
+        return files;
+    }
+
+    const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+        if (entry.name.startsWith('.')) {
+            continue;
+        }
+
+        const fullPath = path.join(directoryPath, entry.name);
+
+        if (entry.isDirectory()) {
+            files.push(...walkLibrarySongFiles(fullPath, basePath));
+            continue;
+        }
+
+        if (!entry.name.endsWith('.json') || NON_SONG_FILES.has(entry.name)) {
+            continue;
+        }
+
+        files.push({
+            path: fullPath,
+            relativePath: path.relative(basePath, fullPath).split(path.sep).join('/'),
+        });
+    }
+
+    return files;
+};
+
 const createMigrationLogEntry = (filePath, status, details = {}) => ({
     timestamp: new Date().toISOString(),
     filePath,
@@ -326,4 +360,5 @@ module.exports = {
     migrateLibrarySongs,
     buildLibraryState,
     migrateFavoritesIds,
+    walkLibrarySongFiles,
 };
