@@ -55,6 +55,63 @@ function toggleProjection() {
     ipcRenderer.send('projection:toggle');
 }
 
+function normalizeSearchText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+function addSearchPart(parts, value) {
+    if (typeof value === 'string' && value.trim()) {
+        parts.push(value.trim());
+    }
+}
+
+function deriveCollectionPrefix(value) {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return '';
+    }
+
+    return trimmed.replace(/(?:[-_\s]*\d+)$/, '');
+}
+
+function buildCollectionSearchAliases(collection) {
+    const aliases = [];
+    const prefixCandidates = [
+        collection?.reference,
+        deriveCollectionPrefix(collection?.collectionId),
+        collection?.collectionId,
+        collection?.name,
+    ];
+    const number = Number.isInteger(collection?.number) && collection.number > 0
+        ? String(collection.number)
+        : '';
+
+    prefixCandidates.forEach((prefix) => {
+        if (typeof prefix !== 'string' || !prefix.trim()) {
+            return;
+        }
+
+        const normalizedPrefix = prefix.trim();
+        aliases.push(normalizedPrefix);
+
+        if (number) {
+            aliases.push(`${normalizedPrefix} ${number}`);
+            aliases.push(`${normalizedPrefix}-${number}`);
+            aliases.push(`${normalizedPrefix}${number}`);
+        }
+    });
+
+    return aliases;
+}
+
 function setToggleProjectionIcon(isProjectionOn) {
     if (!toggleProjectionButton) {
         return;
@@ -247,21 +304,25 @@ export async function unmount() {
     mountContext = null;
 }
 
-function buildSongSearchText(songData) {
-    const parts = [songData?.name];
+function buildSongSearchText(songData, fileName) {
+    const parts = [];
+
+    addSearchPart(parts, songData?.name);
+    addSearchPart(parts, songData?.id);
+
+    if (typeof fileName === 'string' && fileName.trim()) {
+        addSearchPart(parts, fileName.replace(/\.[^.]+$/, ''));
+    }
 
     (Array.isArray(songData?.collections) ? songData.collections : []).forEach((collection) => {
-        parts.push(
-            collection?.name,
-            collection?.collectionId,
-            Number.isInteger(collection?.number) ? String(collection.number) : '',
-        );
+        parts.push(...buildCollectionSearchAliases(collection));
     });
 
-    return parts
-        .filter((part) => typeof part === 'string' && part.trim())
-        .join(' ')
-        .toLowerCase();
+    return normalizeSearchText(
+        parts
+            .filter((part) => typeof part === 'string' && part.trim())
+            .join(' '),
+    );
 }
 
 function applyLibrarySearchFilter() {
@@ -270,7 +331,7 @@ function applyLibrarySearchFilter() {
     }
 
     const query = typeof librarySearchInput?.value === 'string'
-        ? librarySearchInput.value.trim().toLowerCase()
+        ? normalizeSearchText(librarySearchInput.value)
         : '';
 
     Array.from(libraryListContainer.children).forEach((item) => {
@@ -388,7 +449,7 @@ function createFileList(files, container) {
         } else {
             const songData = JSON.parse(window.fs.readFileSync(file.path, 'utf8'));
             li.dataset.libraryKind = 'song';
-            li.dataset.librarySearchText = buildSongSearchText(songData);
+            li.dataset.librarySearchText = buildSongSearchText(songData, file.name);
             a.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
                 </svg>
