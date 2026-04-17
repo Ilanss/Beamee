@@ -219,6 +219,11 @@ const buildLibraryState = (libraryRoot) => {
             return;
         }
 
+        if (songsById.has(rawSong.id)) {
+            console.warn(`Duplicate song id skipped while building library state: ${rawSong.id} (${filePath})`);
+            return;
+        }
+
         songsById.set(rawSong.id, {
             ...rawSong,
             path: filePath,

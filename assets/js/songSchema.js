@@ -264,7 +264,7 @@ const validateSong = (song) => {
     }
 
     if (!Array.isArray(song.authors) || song.authors.some((author) => typeof author !== 'string' || !author.trim())) {
-        errors.push('authors must be an array of non-empty strings');
+        errors.push('authors must be an array of strings');
     }
 
     if (!Array.isArray(song.collections) || song.collections.some((collection) => !isPlainObject(collection))) {

@@ -800,20 +800,6 @@ const createMainWindow = () => {
         {
           label: 'File',
           submenu: [
-            {
-              label: 'New Song',
-              click: () => {
-                mainWindow.webContents.send('show-add-song-view');
-              },
-              accelerator: 'CmdOrCtrl+N'
-            },
-            {
-              label: 'New Folder',
-              click: () => {
-                mainWindow.webContents.send('show-add-folder-view');
-              },
-              accelerator: 'CmdOrCtrl+Shift+N'
-            },
             { type: 'separator' },
             ...(isMac ? [{
               label: 'Import Songs...',

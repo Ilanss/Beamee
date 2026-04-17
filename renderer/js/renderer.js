@@ -71,6 +71,29 @@ function addSearchPart(parts, value) {
     }
 }
 
+function appendTextWithLineBreaks(parent, value) {
+    if (!parent) {
+        return;
+    }
+
+    const text = String(value ?? '');
+    const lines = text.split('\n');
+
+    lines.forEach((line, index) => {
+        if (index > 0) {
+            parent.appendChild(document.createElement('br'));
+        }
+
+        parent.appendChild(document.createTextNode(line));
+    });
+}
+
+function createIconSpan(svgMarkup) {
+    const icon = document.createElement('span');
+    icon.innerHTML = svgMarkup;
+    return icon;
+}
+
 function deriveCollectionPrefix(value) {
     if (typeof value !== 'string') {
         return '';
@@ -185,7 +208,7 @@ export async function mount(root, context = {}) {
     onIpc('black-screen', () => {
         currentVerseIndex = undefined;
         if (previewLyrics) {
-            previewLyrics.innerHTML = '';
+            previewLyrics.replaceChildren();
         }
     });
 
@@ -233,6 +256,10 @@ export async function mount(root, context = {}) {
         changeToPrevVerse();
     });
 
+    onIpc('projection:chorus', () => {
+        changeToChorus();
+    });
+
     onIpc('verse:change', (verse) => {
         currentVerseIndex = verse;
         updateProjection();
@@ -250,7 +277,7 @@ export async function mount(root, context = {}) {
 
     on(rootElement.querySelector('#black-screen'), 'click', () => {
         if (previewLyrics) {
-            previewLyrics.innerHTML = '';
+            previewLyrics.replaceChildren();
         }
 
         currentVerseIndex = undefined;
@@ -424,7 +451,7 @@ function createFavoritesList(favorites) {
     }
 
     const list = Array.isArray(favorites) ? favorites : [];
-    favoritesListRoot.innerHTML = '';
+    favoritesListRoot.replaceChildren();
     ensureFavoritesSortable(favoritesListRoot, true);
     bindSongClickDelegation();
     bindLibrarySongContextMenu();
@@ -449,7 +476,7 @@ function createFileList(files, container) {
     bindLibrarySongContextMenu();
 
     ensureLibrarySortable(container);
-    container.innerHTML = '';
+    container.replaceChildren();
 
     (Array.isArray(files) ? files : []).forEach(file => {
         let li = document.createElement('li');
@@ -460,13 +487,14 @@ function createFileList(files, container) {
             // details.setAttribute('open', '');
 
             const summary = document.createElement('summary');
-
-            summary.innerHTML = `
+            const icon = createIconSpan(`
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
                 </svg>
-                ${file.name}
-                `;
+            `);
+
+            summary.appendChild(icon);
+            summary.appendChild(document.createTextNode(file.name));
 
             const ul = document.createElement('ul');
             li.dataset.libraryKind = 'folder';
@@ -486,12 +514,14 @@ function createFileList(files, container) {
             const songData = JSON.parse(window.fs.readFileSync(file.path, 'utf8'));
             li.dataset.libraryKind = 'song';
             li.dataset.librarySearchText = buildSongSearchText(songData, file.name);
-            a.innerHTML = `  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+            a.appendChild(createIconSpan(`
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
                 </svg>
-                ${songData.name}`
+            `));
+            a.appendChild(document.createTextNode(songData.name));
             li.appendChild(a);
-            li.dataset.favoriteKind = 'song';
+            li.dataset.libraryKind = 'song';
             li.dataset.songId = songData.id;
             li.dataset.songPath = file.path;
             li.dataset.songName = songData.name;
@@ -997,15 +1027,21 @@ function loadSong(songPath) {
 
         currentSongPath = songPath;
         ipcRenderer.send('song:selected', songPath);
-        main.innerHTML = '';
+        main.replaceChildren();
         currentLyrics = expandSongForProjection(songData);
         currentVerseIndex = undefined;
 
         currentLyrics.forEach((verse, i) => {
             const li = document.createElement('li');
-            const formattedText = verse.text.replace(/\\n/g, '<br>');
+            const label = document.createElement('p');
+            label.className = 'mt-2 text-xs uppercase';
+            label.textContent = `#${i + 1} ${verse.label || verse.type}`;
 
-            li.innerHTML = `<p class="mt-2 text-xs uppercase">#${i + 1} ${verse.label || verse.type}</p>` + formattedText;
+            const text = document.createElement('div');
+            appendTextWithLineBreaks(text, verse.text);
+
+            li.appendChild(label);
+            li.appendChild(text);
             li.setAttribute('id', `verse-${i}`);
             li.classList.add('bg-gray-100', 'rounded-md', 'p-2', 'px-4', 'pb-3', 'hover:bg-gray-200', 'active:bg-gray-300', 'dark:bg-slate-800', 'hover:dark:bg-slate-700');
 
@@ -1020,12 +1056,13 @@ function loadSong(songPath) {
         document.querySelector('#song-name').innerText = songData.name;
         ipcRenderer.send('song:loaded', currentLyrics.length);
         if (previewLyrics) {
-            previewLyrics.innerHTML = '';
+            previewLyrics.replaceChildren();
         }
     } catch (error) {
         console.error('Failed to load song', error);
         currentSongPath = null;
         ipcRenderer.send('song:selected', null);
+        ipcRenderer.send('song:loaded', 0);
         currentLyrics = [];
         currentVerseIndex = undefined;
         renderSongPlaceholder();
@@ -1037,11 +1074,19 @@ function renderSongPlaceholder() {
         return;
     }
 
-    main.innerHTML = `
-        <div class="text-center pt-16 text-lg font-bold">
-          <p></p><i class="bi bi-arrow-left pr-3"></i>Select a song</p>
-        </div>
-    `;
+    main.replaceChildren();
+
+    const placeholder = document.createElement('div');
+    placeholder.className = 'text-center pt-16 text-lg font-bold';
+
+    const paragraph = document.createElement('p');
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-arrow-left pr-3';
+    paragraph.appendChild(icon);
+    paragraph.appendChild(document.createTextNode('Select a song'));
+
+    placeholder.appendChild(paragraph);
+    main.appendChild(placeholder);
 
     const songName = rootElement.querySelector('#song-name');
     if (songName) {
@@ -1049,7 +1094,7 @@ function renderSongPlaceholder() {
     }
 
     if (previewLyrics) {
-        previewLyrics.innerHTML = '';
+        previewLyrics.replaceChildren();
     }
 }
 
@@ -1101,21 +1146,25 @@ function expandSongForProjection(songData) {
 function updateProjection() {
     if (!Array.isArray(currentLyrics) || currentVerseIndex === undefined || !currentLyrics[currentVerseIndex]) {
         if (previewLyrics) {
-            previewLyrics.innerHTML = '';
+            previewLyrics.replaceChildren();
         }
         return;
     }
 
-    let formattedText = currentLyrics[currentVerseIndex].text.replace(/\\n/g, '<br>');
+    const verseText = currentLyrics[currentVerseIndex].text;
+
     if (previewLyrics) {
-        previewLyrics.innerHTML = `<p>${formattedText}</p>`;
+        previewLyrics.replaceChildren();
+        const paragraph = document.createElement('p');
+        appendTextWithLineBreaks(paragraph, verseText);
+        previewLyrics.appendChild(paragraph);
     }
 
     if (currentPreferences) {
         applyPreviewPreferences(currentPreferences);
     }
 
-    ipcRenderer.send('display-lyrics', formattedText);
+    ipcRenderer.send('display-lyrics', verseText);
 }
 
 function changeToPrevVerse() {
@@ -1130,4 +1179,19 @@ function changeToNextVerse() {
         currentVerseIndex++;
         updateProjection();
     }
+}
+
+function changeToChorus() {
+    if (!Array.isArray(currentLyrics)) {
+        return;
+    }
+
+    const chorusIndex = currentLyrics.findIndex((verse) => verse?.type === 'chorus');
+
+    if (chorusIndex === -1) {
+        return;
+    }
+
+    currentVerseIndex = chorusIndex;
+    updateProjection();
 }

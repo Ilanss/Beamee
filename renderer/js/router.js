@@ -155,12 +155,6 @@ window.addEventListener('hashchange', () => {
   renderRoute(routeName);
 });
 
-if (window.ipcRenderer && typeof window.ipcRenderer.on === 'function') {
-  window.ipcRenderer.on('navigate', (routeName) => {
-    navigate(routeName);
-  });
-}
-
 window.addEventListener('DOMContentLoaded', () => {
   if (!window.location.hash) {
     navigate('library', { replace: true });
