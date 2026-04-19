@@ -8,6 +8,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     paddingBottom: 10,
     paddingLeft: 10,
     paddingRight: 10,
+    useArrangement: true,
 });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -23,6 +24,8 @@ const clampNumber = (value, fallback, min, max) => {
 };
 
 const isHexColor = (value) => typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value.trim());
+
+const isBoolean = (value) => typeof value === 'boolean';
 
 const normalizePreferences = (preferences = {}) => {
     const source = isObject(preferences) ? preferences : {};
@@ -44,6 +47,7 @@ const normalizePreferences = (preferences = {}) => {
         paddingBottom: clampNumber(source.paddingBottom, DEFAULT_PREFERENCES.paddingBottom, 0, 200),
         paddingLeft: clampNumber(source.paddingLeft, DEFAULT_PREFERENCES.paddingLeft, 0, 200),
         paddingRight: clampNumber(source.paddingRight, DEFAULT_PREFERENCES.paddingRight, 0, 200),
+        useArrangement: isBoolean(source.useArrangement) ? source.useArrangement : DEFAULT_PREFERENCES.useArrangement,
     };
 };
 

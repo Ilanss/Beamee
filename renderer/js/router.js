@@ -133,7 +133,40 @@ function navigate(routeName, options = {}) {
   window.location.hash = nextHash;
 }
 
+function getCheckboxFromClick(event) {
+  const target = event.target instanceof Element ? event.target : null;
+
+  if (!target) {
+    return null;
+  }
+
+  if (target instanceof HTMLInputElement && target.type === 'checkbox') {
+    return target;
+  }
+
+  const label = target.closest('label');
+
+  if (label instanceof HTMLLabelElement && label.control instanceof HTMLInputElement && label.control.type === 'checkbox') {
+    return label.control;
+  }
+
+  const checkbox = target.closest('input[type="checkbox"]');
+
+  return checkbox instanceof HTMLInputElement ? checkbox : null;
+}
+
 document.addEventListener('click', (event) => {
+  const checkbox = getCheckboxFromClick(event);
+
+  if (checkbox && !checkbox.disabled) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    checkbox.checked = !checkbox.checked;
+    checkbox.dispatchEvent(new Event('input', { bubbles: true }));
+    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+
   const trigger = event.target.closest('[data-route]');
 
   if (!trigger) {

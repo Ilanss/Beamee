@@ -12,6 +12,8 @@ let previewContent = null;
 let previewLyrics = null;
 let mounted = false;
 let currentSongPath;
+let arrangementCheckbox = null;
+let currentUseArrangement = true;
 
 const cleanupTasks = [];
 
@@ -156,6 +158,11 @@ function applyPreviewPreferences(preferences) {
     }
 
     currentPreferences = preferences;
+    currentUseArrangement = preferences.useArrangement !== false;
+
+    if (arrangementCheckbox && arrangementCheckbox.checked !== currentUseArrangement) {
+        arrangementCheckbox.checked = currentUseArrangement;
+    }
 
     previewContent.style.fontFamily = preferences.fontFamily;
     const previewWidth = previewContent.offsetWidth || 1280;
@@ -168,6 +175,43 @@ function applyPreviewPreferences(preferences) {
     previewContent.style.paddingLeft = `${preferences.paddingLeft}px`;
     previewContent.style.paddingRight = `${preferences.paddingRight}px`;
 
+}
+
+function renderSong(songData) {
+    if (!main) {
+        return;
+    }
+
+    const verses = expandSongForProjection(songData, currentUseArrangement);
+
+    currentLyrics = verses;
+    currentVerseIndex = undefined;
+
+    main.replaceChildren();
+
+    verses.forEach((verse, i) => {
+        const li = document.createElement('li');
+        const label = document.createElement('p');
+        label.className = 'mt-2 text-xs uppercase';
+        label.textContent = `#${i + 1} ${verse.label || verse.type}`;
+
+        const text = document.createElement('div');
+        appendTextWithLineBreaks(text, verse.text);
+
+        li.appendChild(label);
+        li.appendChild(text);
+        li.setAttribute('id', `verse-${i}`);
+        li.classList.add('bg-gray-100', 'rounded-md', 'p-2', 'px-4', 'pb-3', 'hover:bg-gray-200', 'active:bg-gray-300', 'dark:bg-slate-800', 'hover:dark:bg-slate-700');
+
+        li.addEventListener('click', () => {
+            currentVerseIndex = i;
+            updateProjection();
+        });
+
+        main.appendChild(li);
+    });
+
+    ipcRenderer.send('song:loaded', verses.length);
 }
 
 const isMountCurrent = () => mounted && (!mountContext || typeof mountContext.isCurrent !== 'function' || mountContext.isCurrent());
@@ -191,6 +235,7 @@ export async function mount(root, context = {}) {
     createPlaylistButton = rootElement.querySelector('#create-playlist');
     previewContent = rootElement.querySelector('#preview');
     previewLyrics = document.createElement('div');
+    arrangementCheckbox = rootElement.querySelector('#arrangement');
 
     if (previewContent) {
         previewLyrics.id = 'preview-lyrics';
@@ -213,10 +258,15 @@ export async function mount(root, context = {}) {
     });
 
     onIpc('preferences:changed', (preferences) => {
+        const previousUseArrangement = currentUseArrangement;
         applyPreviewPreferences(preferences);
 
-        if (currentVerseIndex !== undefined) {
+        if (previousUseArrangement === currentUseArrangement && currentVerseIndex !== undefined) {
             updateProjection();
+        }
+
+        if (currentSongPath && previousUseArrangement !== currentUseArrangement) {
+            renderCurrentSong();
         }
     });
 
@@ -284,6 +334,19 @@ export async function mount(root, context = {}) {
         ipcRenderer.send('black-screen');
     });
 
+    on(arrangementCheckbox, 'change', () => {
+        const useArrangement = Boolean(arrangementCheckbox?.checked);
+
+        currentUseArrangement = useArrangement;
+        ipcRenderer.invoke('save-preferences', { useArrangement }).catch((error) => {
+            console.error('Failed to save arrangement preference', error);
+        });
+
+        if (currentSongPath) {
+            renderCurrentSong();
+        }
+    });
+
     if (favoritesListRoot) {
         ensureFavoritesSortable(favoritesListRoot, true);
     }
@@ -324,7 +387,7 @@ export async function mount(root, context = {}) {
         }
 
         if (currentSongPath) {
-            loadSong(currentSongPath);
+            renderCurrentSong();
         }
     } catch (error) {
         if (!isMountCurrent()) {
@@ -333,6 +396,14 @@ export async function mount(root, context = {}) {
 
         console.error('Failed to initialize library view', error);
     }
+}
+
+function renderCurrentSong() {
+    if (!currentSongPath) {
+        return;
+    }
+
+    loadSong(currentSongPath);
 }
 
 export async function unmount() {
@@ -1027,34 +1098,9 @@ function loadSong(songPath) {
 
         currentSongPath = songPath;
         ipcRenderer.send('song:selected', songPath);
-        main.replaceChildren();
-        currentLyrics = expandSongForProjection(songData);
-        currentVerseIndex = undefined;
-
-        currentLyrics.forEach((verse, i) => {
-            const li = document.createElement('li');
-            const label = document.createElement('p');
-            label.className = 'mt-2 text-xs uppercase';
-            label.textContent = `#${i + 1} ${verse.label || verse.type}`;
-
-            const text = document.createElement('div');
-            appendTextWithLineBreaks(text, verse.text);
-
-            li.appendChild(label);
-            li.appendChild(text);
-            li.setAttribute('id', `verse-${i}`);
-            li.classList.add('bg-gray-100', 'rounded-md', 'p-2', 'px-4', 'pb-3', 'hover:bg-gray-200', 'active:bg-gray-300', 'dark:bg-slate-800', 'hover:dark:bg-slate-700');
-
-            li.addEventListener('click', () => {
-                currentVerseIndex = i;
-                updateProjection();
-            });
-
-            main.appendChild(li);
-        });
+        renderSong(songData);
 
         document.querySelector('#song-name').innerText = songData.name;
-        ipcRenderer.send('song:loaded', currentLyrics.length);
         if (previewLyrics) {
             previewLyrics.replaceChildren();
         }
@@ -1098,33 +1144,44 @@ function renderSongPlaceholder() {
     }
 }
 
-function expandSongForProjection(songData) {
-    if (songData && Array.isArray(songData.sections) && Array.isArray(songData.arrangement)) {
-        const sectionsById = new Map(
-            songData.sections
-                .filter((section) => section && typeof section.id === 'string')
-                .map((section) => [section.id, section])
-        );
-
-        return songData.arrangement
-            .map((step) => {
-                const section = sectionsById.get(step?.sectionId);
-
-                if (!section) {
-                    return null;
-                }
-
-                return {
-                    id: section.id,
-                    type: section.type || 'other',
-                    label: step.label || section.title || section.type || 'other',
-                    text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
-                };
-            })
-            .filter(Boolean);
+function expandSongForProjection(songData, useArrangement = true) {
+    if (!songData || !Array.isArray(songData.sections)) {
+        return [];
     }
 
-    return [];
+    const sectionsById = new Map(
+        songData.sections
+            .filter((section) => section && typeof section.id === 'string')
+            .map((section) => [section.id, section])
+    );
+
+    if (!useArrangement || !Array.isArray(songData.arrangement) || songData.arrangement.length === 0) {
+        return songData.sections
+            .filter((section) => section && typeof section.id === 'string')
+            .map((section) => ({
+                id: section.id,
+                type: section.type || 'other',
+                label: section.title || section.type || 'other',
+                text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
+            }));
+    }
+
+    return songData.arrangement
+        .map((step) => {
+            const section = sectionsById.get(step?.sectionId);
+
+            if (!section) {
+                return null;
+            }
+
+            return {
+                id: section.id,
+                type: section.type || 'other',
+                label: step.label || section.title || section.type || 'other',
+                text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
+            };
+        })
+        .filter(Boolean);
 }
 
 // function displayLyrics(sections) {
