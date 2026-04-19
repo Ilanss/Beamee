@@ -555,7 +555,6 @@ function createFileList(files, container) {
 
         if (file.isDirectory) {
             const details = document.createElement('details');
-            // details.setAttribute('open', '');
 
             const summary = document.createElement('summary');
             const icon = createIconSpan(`
@@ -575,11 +574,7 @@ function createFileList(files, container) {
             li.appendChild(details);
             enableFolderToggleFallback(details, summary);
 
-            // li.innerText = file.name;
-            // let ul = document.createElement('ul');
             createFileList(file.children, ul);
-            // li.setAttribute('class', 'directory p-2.5 mt-3 flex items-center rounded-md px-4 duration-300 cursor-pointer hover:bg-blue-600 text-white');
-            // li.appendChild(ul);
             ensureLibrarySortable(ul);
         } else {
             const songData = JSON.parse(window.fs.readFileSync(file.path, 'utf8'));
@@ -1183,23 +1178,6 @@ function expandSongForProjection(songData, useArrangement = true) {
         })
         .filter(Boolean);
 }
-
-// function displayLyrics(sections) {
-//     currentLyrics = sections;
-//     currentVerseIndex = 0;
-//     const lyricsContent = document.getElementById('lyrics-content');
-//     lyricsContent.innerHTML = sections.map((section, index) => 
-//       `<p data-index="${index}" class="${section.type}">${section.lines.join('<br>')}</p>`
-//     ).join('');
-//     document.querySelectorAll('#lyrics-content p').forEach(p => {
-//       p.addEventListener('click', () => {
-//         currentVerseIndex = parseInt(p.getAttribute('data-index'));
-//         updateProjection();
-//       });
-//     });
-//     updateProjection();
-// }
-
 function updateProjection() {
     if (!Array.isArray(currentLyrics) || currentVerseIndex === undefined || !currentLyrics[currentVerseIndex]) {
         if (previewLyrics) {

@@ -1,4 +1,3 @@
-// preload.js
 const fs = require('fs');
 const path = require('path');
 const { contextBridge, ipcRenderer } = require('electron');
@@ -46,5 +45,3 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 contextBridge.exposeInMainWorld('Sortable', {
     create: (element, options) => Sortable.create(element, options)
 });
-
-// contextBridge.exposeInMainWorld('Sortable', Sortable);

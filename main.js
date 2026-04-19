@@ -1,13 +1,8 @@
-// main.js
-
-// Modules to control application life and create native browser window
-const path = require('path'); // TODO after rework it should required only in file controller
-// const os = require('os'); // TODO check if useful 
-const fs = require('fs'); // TODO after rework it should required only in file controller
+const path = require('path');
+const fs = require('fs');
 const { app, BrowserWindow, Menu, ipcMain, screen, dialog } = require('electron');
 const archiver = require('archiver');
 
-// Controller imports
 const libraryController = require('./assets/js/libraryController.js');
 const fileController = require('./assets/js/fileController.js');
 const songSchema = require('./assets/js/songSchema.js');
@@ -19,7 +14,6 @@ let isProjectionOn = false;
 let projectorWindow;
 let mainWindow;
 let appDataPaths;
-let migrationResult;
 let libraryState;
 let currentSongPath = null;
 
@@ -42,25 +36,10 @@ const ensureDirSync = (dir) => {
     }
 };
 
-const migrateLegacyData = (paths) => {
-    const legacyLibraryPath = path.join(__dirname, 'library');
-    const legacyFavoritesPath = path.join(__dirname, 'favorites.json');
-
-    if (!fs.existsSync(paths.library) && fs.existsSync(legacyLibraryPath)) {
-        fs.cpSync(legacyLibraryPath, paths.library, { recursive: true });
-    }
-
-    if (!fs.existsSync(paths.favorites) && fs.existsSync(legacyFavoritesPath)) {
-        fs.copyFileSync(legacyFavoritesPath, paths.favorites);
-    }
-
-};
-
 const bootstrapAppData = () => {
     const paths = getAppDataPaths();
 
     ensureDirSync(paths.baseDir);
-    migrateLegacyData(paths);
     ensureDirSync(paths.library);
 
     if (!fs.existsSync(paths.favorites)) {
@@ -91,13 +70,8 @@ const saveJsonFile = (filePath, data) => {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 };
 
-const invalidateLibraryState = () => {
-    migrationResult = null;
-    libraryState = null;
-};
-
 const refreshLibraryState = () => {
-    invalidateLibraryState();
+    libraryState = null;
     ensureLibraryDataLoaded();
     return libraryState;
 };
@@ -243,18 +217,6 @@ const exportLibraryZip = async (window) => {
     return { ok: true, filePath, count: songFiles.length };
 };
 
-const createImportedSongCopy = (song, sourcePath) => {
-    const baseName = typeof song.name === 'string' && song.name.trim()
-        ? song.name.trim()
-        : path.basename(sourcePath, path.extname(sourcePath));
-    const newId = fileController.songNaming(baseName || 'song');
-
-    return {
-        ...song,
-        id: newId,
-    };
-};
-
 const createImportedSongCopyWithReservedIds = (song, sourcePath, reservedIds) => {
     const baseName = typeof song.name === 'string' && song.name.trim()
         ? song.name.trim()
@@ -263,7 +225,7 @@ const createImportedSongCopyWithReservedIds = (song, sourcePath, reservedIds) =>
     let candidate = normalized;
     let counter = 1;
 
-    while (reservedIds.has(candidate) || fileController.getSongFromFilename(candidate)) {
+    while (reservedIds.has(candidate)) {
         candidate = `${normalized}-${counter++}`;
     }
 
@@ -305,22 +267,22 @@ const buildImportCandidate = (filePath, songPathById) => {
         return { ok: false, status: 'skipped', filePath, reason: 'invalid-json' };
     }
 
-    const migratedSong = songSchema.migrateSongToV1(rawSong, { sourcePath: filePath });
-    const errors = songSchema.validateSong(migratedSong);
+    const normalizedSong = songSchema.normalizeSong(rawSong, { sourcePath: filePath });
+    const errors = songSchema.validateSong(normalizedSong);
 
     if (errors.length > 0) {
         return { ok: false, status: 'skipped', filePath, reason: 'validation-failed', errors };
     }
 
-    const existingPath = songPathById.get(migratedSong.id);
+    const existingPath = songPathById.get(normalizedSong.id);
     return {
         ok: true,
         status: existingPath ? 'conflict' : 'ready',
         filePath,
-        targetPath: existingPath || getSongPathForId(migratedSong.id),
-        songId: migratedSong.id,
+        targetPath: existingPath || getSongPathForId(normalizedSong.id),
+        songId: normalizedSong.id,
         existingPath,
-        song: migratedSong,
+        song: normalizedSong,
     };
 };
 
@@ -464,8 +426,26 @@ const summarizeImportResults = (results) => {
     };
 };
 
-const resolveSongRecord = (songId) => {
-    if (!libraryState || !songId) {
+const ensureLibraryDataLoaded = () => {
+    if (libraryState) {
+        return;
+    }
+
+    libraryState = libraryController.buildLibraryState(appDataPaths.library);
+};
+
+const resolveFavoriteSongRef = (songRef) => {
+    if (!libraryState) {
+        return null;
+    }
+
+    const songId = typeof songRef === 'string'
+        ? songRef
+        : songRef && typeof songRef.id === 'string'
+            ? songRef.id
+            : '';
+
+    if (!songId) {
         return null;
     }
 
@@ -479,16 +459,10 @@ const resolveSongRecord = (songId) => {
         id: song.id,
         path: song.path,
         name: song.name,
+        displayName: typeof songRef === 'object' && songRef && typeof songRef.displayName === 'string'
+            ? songRef.displayName
+            : '',
     };
-};
-
-const ensureLibraryDataLoaded = () => {
-    if (libraryState) {
-        return;
-    }
-
-    migrationResult = libraryController.migrateLibrarySongs(appDataPaths.library, appDataPaths.baseDir);
-    libraryState = libraryController.buildLibraryState(appDataPaths.library);
 };
 
 const loadFavorites = () => {
@@ -498,13 +472,7 @@ const loadFavorites = () => {
         return [];
     }
 
-    const migration = libraryController.migrateFavoritesIds(favorites, migrationResult?.idMap || new Map());
-
-    if (migration.changed) {
-        saveJsonFile(appDataPaths.favorites, migration.favorites);
-    }
-
-    return migration.favorites
+    return favorites
         .map((favorite) => {
             const safeFavorite = favorite && typeof favorite === 'object' ? favorite : {};
 
@@ -512,40 +480,18 @@ const loadFavorites = () => {
                 return {
                     ...safeFavorite,
                     songs: safeFavorite.songs
-                        .map((songRef) => {
-                            const songId = typeof songRef === 'string' ? songRef : songRef?.id;
-                            const song = resolveSongRecord(songId);
-
-                            if (!song) {
-                                return null;
-                            }
-
-                            return {
-                                ...song,
-                                displayName: typeof songRef === 'object' && songRef && typeof songRef.displayName === 'string'
-                                    ? songRef.displayName
-                                    : '',
-                            };
-                        })
-                        .filter(Boolean)
+                        .map(resolveFavoriteSongRef)
+                        .filter(Boolean),
                 };
             }
 
-            if (!safeFavorite.id) {
-                return null;
+            if (typeof safeFavorite.id === 'string') {
+                const song = resolveFavoriteSongRef(safeFavorite);
+
+                return song ? { ...safeFavorite, ...song } : null;
             }
 
-            const song = resolveSongRecord(safeFavorite.id);
-
-            if (!song) {
-                return null;
-            }
-
-            return {
-                ...safeFavorite,
-                ...song,
-                displayName: typeof safeFavorite.displayName === 'string' ? safeFavorite.displayName : '',
-            };
+            return safeFavorite;
         })
         .filter(Boolean);
 };
@@ -784,7 +730,6 @@ const handleExportLibraryZip = async (window) => {
 };
 
 const createMainWindow = () => {
-    // Create the browser window.
     mainWindow = new BrowserWindow({
         name: "Beamee",
         width: isDev ? 1600 : 800,
@@ -801,15 +746,11 @@ const createMainWindow = () => {
     if (isDev) {
         mainWindow.webContents.openDevTools();
     }
-    // and load the index.html of the app.
     mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
 
     mainWindow.webContents.on('did-finish-load', () => {
         ensureLibraryDataLoaded();
     });
-
-    // Open the DevTools.
-    // mainWindow.webContents.openDevTools()
 
 }
 
@@ -826,7 +767,6 @@ const createProjectorWindow = () => {
     let externalDisplay = null;
     const displays = screen.getAllDisplays();
 
-    // Look for a secondary display (if any)
     for (const display of displays) {
       if (display.bounds.x !== 0 || display.bounds.y !== 0) {
         externalDisplay = display;
@@ -846,16 +786,13 @@ const createProjectorWindow = () => {
         }
     };
 
-    // If an external display is found, set the position to the secondary display
     if (externalDisplay) {
         windowOptions.x = externalDisplay.bounds.x;
         windowOptions.y = externalDisplay.bounds.y;
     }
 
-    // Create the window with the specified options
     projectorWindow = new BrowserWindow(windowOptions);
 
-    // and load the index.html of the app.
     projectorWindow.loadFile(path.join(__dirname, 'renderer/projector.html'));
 
     isProjectionOn = true;
@@ -1061,15 +998,6 @@ function unregisterShortcuts(verseCount) {
     setApplicationMenuForVerseCount(0);
 }
 
-// function loadFavorites() {
-//     return new Promise((resolve, reject) => {
-//         const favoritesList = JSON.parse(fs.readFileSync(favoritesFile, 'utf8'));
-//     })
-// }
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
-
 ipcMain.on('projection:toggle', (e) => {
     if (!isProjectionOn) {
         createProjectorWindow();
@@ -1116,23 +1044,15 @@ ipcMain.handle('favorites:update', (event, favorites) => {
     return saveFavorites(favorites);
 });
   
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
     appDataPaths = bootstrapAppData();
     createMainWindow();
 
     app.on('activate', () => {
-        // On macOS it's common to re-create a window in the app when the
-        // dock icon is clicked and there are no other windows open.
         if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
     })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
 })
