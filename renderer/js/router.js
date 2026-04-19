@@ -156,17 +156,6 @@ function getCheckboxFromClick(event) {
 }
 
 document.addEventListener('click', (event) => {
-  const checkbox = getCheckboxFromClick(event);
-
-  if (checkbox && !checkbox.disabled) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    checkbox.checked = !checkbox.checked;
-    checkbox.dispatchEvent(new Event('input', { bubbles: true }));
-    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-    return;
-  }
-
   const trigger = event.target.closest('[data-route]');
 
   if (!trigger) {
@@ -179,7 +168,6 @@ document.addEventListener('click', (event) => {
     return;
   }
 
-  event.preventDefault();
   navigate(routeName);
 });
 

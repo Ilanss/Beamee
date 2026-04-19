@@ -4,7 +4,7 @@
 const path = require('path'); // TODO after rework it should required only in file controller
 // const os = require('os'); // TODO check if useful 
 const fs = require('fs'); // TODO after rework it should required only in file controller
-const { app, BrowserWindow, Menu, ipcMain, screen, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog } = require('electron');
 const archiver = require('archiver');
 
 // Controller imports
@@ -796,7 +796,126 @@ const createMainWindow = () => {
         }
     })
 
-    const menu = Menu.buildFromTemplate([
+    setApplicationMenuForVerseCount();
+
+    if (isDev) {
+        mainWindow.webContents.openDevTools();
+    }
+    // and load the index.html of the app.
+    mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
+
+    mainWindow.webContents.on('did-finish-load', () => {
+        ensureLibraryDataLoaded();
+    });
+
+    // Open the DevTools.
+    // mainWindow.webContents.openDevTools()
+
+}
+
+const navigateMainWindow = (routeName) => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+        return;
+    }
+
+    const route = routeName === 'settings' ? 'settings' : 'library';
+    mainWindow.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(`#${route}`)}`);
+};
+
+const createProjectorWindow = () => {
+    let externalDisplay = null;
+    const displays = screen.getAllDisplays();
+
+    // Look for a secondary display (if any)
+    for (const display of displays) {
+      if (display.bounds.x !== 0 || display.bounds.y !== 0) {
+        externalDisplay = display;
+        break;
+      }
+    }
+
+    const windowOptions = {
+        name: "Beamee Projection",
+        fullscreen: true,
+        width: isDev ? 1200 : 800,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+        }
+    };
+
+    // If an external display is found, set the position to the secondary display
+    if (externalDisplay) {
+        windowOptions.x = externalDisplay.bounds.x;
+        windowOptions.y = externalDisplay.bounds.y;
+    }
+
+    // Create the window with the specified options
+    projectorWindow = new BrowserWindow(windowOptions);
+
+    // and load the index.html of the app.
+    projectorWindow.loadFile(path.join(__dirname, 'renderer/projector.html'));
+
+    isProjectionOn = true;
+
+    if (isDev) {
+        projectorWindow.webContents.openDevTools();
+    }
+
+    projectorWindow.on('close', () => {
+        isProjectionOn = false;
+        mainWindow.webContents.send('projection:status', isProjectionOn);
+        projectorWindow = null;
+    })
+
+    projectorWindow.webContents.on('did-finish-load', () => {
+        mainWindow.webContents.send('projection:status', isProjectionOn);
+        setTimeout(
+            () => {
+                mainWindow.focus();
+            }, 500
+        )
+    });
+}
+
+function loadPreferences() {
+  return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
+}
+
+function savePreferences(preferences) {
+    const currentPreferences = loadPreferences();
+    const nextPreferences = mergePreferences(currentPreferences, preferences);
+
+    fs.writeFileSync(appDataPaths.preferences, JSON.stringify(nextPreferences, null, 2), 'utf8');
+
+    for (const window of BrowserWindow.getAllWindows()) {
+        window.webContents.send('preferences:changed', nextPreferences);
+    }
+
+    return nextPreferences;
+}
+
+function restoreDefaultPreferences() {
+    return savePreferences(DEFAULT_PREFERENCES);
+}
+
+function createApplicationMenuTemplate(verseCount = 0) {
+    const count = Number.isFinite(verseCount) ? Math.min(verseCount, 9) : 0;
+    const verseItems = Array.from({ length: count }, (_, index) => {
+        const verseNumber = index + 1;
+
+        return {
+            label: `Verse ${verseNumber}`,
+            click: () => {
+                mainWindow.webContents.send('verse:change', index);
+            },
+            accelerator: `CmdOrCtrl+${verseNumber}`,
+        };
+    });
+
+    return [
         {
           label: 'File',
           submenu: [
@@ -921,134 +1040,25 @@ const createMainWindow = () => {
                         mainWindow.webContents.send('black-screen'); 
                     },
                     accelerator: 'b'
-                }
+                },
+                ...(verseItems.length ? [{ type: 'separator' }, ...verseItems] : []),
             ]
         }
-      ]);
-    
-      Menu.setApplicationMenu(menu);
-
-    if (isDev) {
-        mainWindow.webContents.openDevTools();
-    }
-    // and load the index.html of the app.
-    mainWindow.loadFile(path.join(__dirname, 'renderer/index.html'));
-
-    mainWindow.webContents.on('did-finish-load', () => {
-        ensureLibraryDataLoaded();
-    });
-
-    // Open the DevTools.
-    // mainWindow.webContents.openDevTools()
-
+    ];
 }
 
-const navigateMainWindow = (routeName) => {
-    if (!mainWindow || mainWindow.isDestroyed()) {
-        return;
-    }
-
-    const route = routeName === 'settings' ? 'settings' : 'library';
-    mainWindow.webContents.executeJavaScript(`window.location.hash = ${JSON.stringify(`#${route}`)}`);
-};
-
-const createProjectorWindow = () => {
-    let externalDisplay = null;
-    const displays = screen.getAllDisplays();
-
-    // Look for a secondary display (if any)
-    for (const display of displays) {
-      if (display.bounds.x !== 0 || display.bounds.y !== 0) {
-        externalDisplay = display;
-        break;
-      }
-    }
-
-    const windowOptions = {
-        name: "Beamee Projection",
-        fullscreen: true,
-        width: isDev ? 1200 : 800,
-        height: 600,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
-        }
-    };
-
-    // If an external display is found, set the position to the secondary display
-    if (externalDisplay) {
-        windowOptions.x = externalDisplay.bounds.x;
-        windowOptions.y = externalDisplay.bounds.y;
-    }
-
-    // Create the window with the specified options
-    projectorWindow = new BrowserWindow(windowOptions);
-
-    // and load the index.html of the app.
-    projectorWindow.loadFile(path.join(__dirname, 'renderer/projector.html'));
-
-    isProjectionOn = true;
-
-    if (isDev) {
-        projectorWindow.webContents.openDevTools();
-    }
-
-    projectorWindow.on('close', () => {
-        isProjectionOn = false;
-        mainWindow.webContents.send('projection:status', isProjectionOn);
-        projectorWindow = null;
-    })
-
-    projectorWindow.webContents.on('did-finish-load', () => {
-        mainWindow.webContents.send('projection:status', isProjectionOn);
-        setTimeout(
-            () => {
-                mainWindow.focus();
-            }, 500
-        )
-    });
-}
-
-function loadPreferences() {
-  return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
-}
-
-function savePreferences(preferences) {
-    const currentPreferences = loadPreferences();
-    const nextPreferences = mergePreferences(currentPreferences, preferences);
-
-    fs.writeFileSync(appDataPaths.preferences, JSON.stringify(nextPreferences, null, 2), 'utf8');
-
-    for (const window of BrowserWindow.getAllWindows()) {
-        window.webContents.send('preferences:changed', nextPreferences);
-    }
-
-    return nextPreferences;
-}
-
-function restoreDefaultPreferences() {
-    return savePreferences(DEFAULT_PREFERENCES);
+function setApplicationMenuForVerseCount(verseCount = 0) {
+    Menu.setApplicationMenu(Menu.buildFromTemplate(createApplicationMenuTemplate(verseCount)));
 }
 
 function registerShortcuts(verseCount) {
-    const count = Number.isFinite(verseCount) ? verseCount : 0;
-
-    for (let i = 1; i <= count; i++) {
-        globalShortcut.register(`${i}`, () => {
-            mainWindow.webContents.send('verse:change', i - 1);
-        });
-    }
-
     lastVerseCount = verseCount;
+    setApplicationMenuForVerseCount(verseCount);
 }
 
 function unregisterShortcuts(verseCount) {
-    const count = Number.isFinite(verseCount) ? verseCount : 0;
-
-    for (let i = 1; i <= count; i++) {
-        globalShortcut.unregister(`${i}`);
-    }
+    lastVerseCount = verseCount;
+    setApplicationMenuForVerseCount(0);
 }
 
 // function loadFavorites() {
