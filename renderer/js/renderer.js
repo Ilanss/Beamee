@@ -8,6 +8,8 @@ let librarySearchInput = null;
 let favoritesListContainer = null;
 let favoritesListRoot = null;
 let createPlaylistButton = null;
+let librarySearchWrap = null;
+let librarySearchIcon = null;
 let previewContent = null;
 let previewLyrics = null;
 let mounted = false;
@@ -55,6 +57,18 @@ let favoritesSongContextMenuDelegated = false;
 let currentPreferences;
 let mountContext = null;
 
+const librarySearchIconSvg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="#6B7280">
+        <path d="M13 3C7.489 3 3 7.489 3 13s4.489 10 10 10a9.95 9.95 0 0 0 6.322-2.264l5.971 5.971a1 1 0 1 0 1.414-1.414l-5.97-5.97A9.95 9.95 0 0 0 23 13c0-5.511-4.489-10-10-10m0 2c4.43 0 8 3.57 8 8s-3.57 8-8 8-8-3.57-8-8 3.57-8 8-8" />
+    </svg>
+`;
+
+const librarySearchClearSvg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#6B7280">
+  <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clip-rule="evenodd" />
+</svg>
+`;
+
 function toggleProjection() {
     ipcRenderer.send('projection:toggle');
 }
@@ -94,6 +108,17 @@ function createIconSpan(svgMarkup) {
     const icon = document.createElement('span');
     icon.innerHTML = svgMarkup;
     return icon;
+}
+
+function setLibrarySearchIcon(isSearching) {
+    if (!librarySearchIcon) {
+        return;
+    }
+
+    librarySearchIcon.innerHTML = isSearching ? librarySearchClearSvg : librarySearchIconSvg;
+    librarySearchIcon.style.cursor = isSearching ? 'pointer' : 'default';
+    librarySearchIcon.title = isSearching ? 'Clear search' : '';
+    librarySearchIcon.setAttribute('aria-label', isSearching ? 'Clear search' : 'Search');
 }
 
 function deriveCollectionPrefix(value) {
@@ -230,6 +255,8 @@ export async function mount(root, context = {}) {
     main = rootElement.querySelector('#verse-display ul');
     libraryListContainer = rootElement.querySelector('#library-list ul');
     librarySearchInput = rootElement.querySelector('#library-search');
+    librarySearchWrap = rootElement.querySelector('#library-search-wrap');
+    librarySearchIcon = librarySearchWrap?.querySelector('#search-icon') || null;
     favoritesListContainer = rootElement.querySelector('#favorites-list');
     favoritesListRoot = favoritesListContainer?.querySelector('ul');
     createPlaylistButton = rootElement.querySelector('#create-playlist');
@@ -357,6 +384,16 @@ export async function mount(root, context = {}) {
 
     on(librarySearchInput, 'input', () => {
         applyLibrarySearchFilter();
+        setLibrarySearchIcon(Boolean(librarySearchInput?.value));
+    });
+
+    on(librarySearchIcon, 'click', () => {
+        if (!librarySearchInput || !librarySearchInput.value) {
+            return;
+        }
+
+        librarySearchInput.value = '';
+        librarySearchInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
     try {
@@ -377,6 +414,7 @@ export async function mount(root, context = {}) {
         }
 
         applyPreviewPreferences(preferences);
+        setLibrarySearchIcon(Boolean(librarySearchInput?.value));
 
         if (state?.library) {
             createFileList(state.library, libraryListContainer);
@@ -421,6 +459,8 @@ export async function unmount() {
     main = null;
     libraryListContainer = null;
     librarySearchInput = null;
+    librarySearchWrap = null;
+    librarySearchIcon = null;
     favoritesListContainer = null;
     favoritesListRoot = null;
     createPlaylistButton = null;

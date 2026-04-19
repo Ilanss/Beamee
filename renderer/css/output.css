@@ -2937,6 +2937,10 @@ html {
   height: 100vh;
 }
 
+.h-2 {
+  height: 0.5rem;
+}
+
 .min-h-0 {
   min-height: 0px;
 }
