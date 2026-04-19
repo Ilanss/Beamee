@@ -43,6 +43,21 @@ const onIpc = (channel, handler) => {
   });
 };
 
+const bindSelectAllShortcut = (input) => {
+  if (!input) {
+    return;
+  }
+
+  on(input, 'keydown', (event) => {
+    if (!((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a')) {
+      return;
+    }
+
+    event.preventDefault();
+    input.select();
+  });
+};
+
 const resetCleanup = () => {
   while (cleanupTasks.length) {
     const cleanup = cleanupTasks.pop();
@@ -254,6 +269,19 @@ export async function mount(root, context = {}) {
   statusElement = rootElement.querySelector('#preferences-status');
 
   colorFieldIds.forEach(bindColorField);
+
+  Array.from(rootElement.querySelectorAll('input, textarea')).forEach((input) => {
+    if (!(input instanceof HTMLInputElement)) {
+      bindSelectAllShortcut(input);
+      return;
+    }
+
+    if (['button', 'checkbox', 'color', 'file', 'hidden', 'radio', 'reset', 'submit'].includes(input.type)) {
+      return;
+    }
+
+    bindSelectAllShortcut(input);
+  });
 
   onIpc('preferences:changed', (preferences) => {
     applyPreferencesToForm(preferences);

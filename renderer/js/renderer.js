@@ -110,6 +110,21 @@ function createIconSpan(svgMarkup) {
     return icon;
 }
 
+function bindSelectAllShortcut(input) {
+    if (!input) {
+        return;
+    }
+
+    input.addEventListener('keydown', (event) => {
+        if (!((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'a')) {
+            return;
+        }
+
+        event.preventDefault();
+        input.select();
+    });
+}
+
 function setLibrarySearchIcon(isSearching) {
     if (!librarySearchIcon) {
         return;
@@ -386,6 +401,8 @@ export async function mount(root, context = {}) {
         applyLibrarySearchFilter();
         setLibrarySearchIcon(Boolean(librarySearchInput?.value));
     });
+
+    bindSelectAllShortcut(librarySearchInput);
 
     on(librarySearchIcon, 'click', () => {
         if (!librarySearchInput || !librarySearchInput.value) {
@@ -911,6 +928,7 @@ function beginInlineEdit(labelNode, initialValue, options = {}) {
     input.placeholder = options.placeholder || '';
     input.className = 'input input-ghost input-xs w-full min-w-0';
     input.dataset.inlineEditor = 'true';
+    bindSelectAllShortcut(input);
 
     const restoreLabel = (value) => {
         labelNode.textContent = value;
