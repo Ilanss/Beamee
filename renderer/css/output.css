@@ -2874,6 +2874,10 @@ html {
   margin-top: 1.5rem;
 }
 
+.mb-0 {
+  margin-bottom: 0px;
+}
+
 .flex {
   display: flex;
 }
@@ -2941,6 +2945,10 @@ html {
   min-height: 1.25rem;
 }
 
+.w-1\/2 {
+  width: 50%;
+}
+
 .w-4 {
   width: 1rem;
 }
@@ -2951,6 +2959,10 @@ html {
 
 .w-full {
   width: 100%;
+}
+
+.w-5 {
+  width: 1.25rem;
 }
 
 .min-w-0 {
@@ -3277,6 +3289,10 @@ html {
 
 .uppercase {
   text-transform: uppercase;
+}
+
+.italic {
+  font-style: italic;
 }
 
 .tracking-wide {

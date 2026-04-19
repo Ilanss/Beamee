@@ -552,6 +552,7 @@ function createFileList(files, container) {
     (Array.isArray(files) ? files : []).forEach(file => {
         let li = document.createElement('li');
         let a = document.createElement('a');
+        a.classList.add("flex");
 
         if (file.isDirectory) {
             const details = document.createElement('details');
@@ -585,7 +586,18 @@ function createFileList(files, container) {
                     <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
                 </svg>
             `));
+
+            //(songData.collections[0] != undefined) ? a.appendChild(document.createTextNode(songData.name + songData.collections[0].number)) : a.appendChild(document.createTextNode(songData.name));
+
+            if (songData.collections[0] != undefined) {
+                a.appendChild(Object.assign(document.createElement("span"), {
+                    textContent: "#" + songData.collections[0].number,
+                    classList: "text-gray-500"
+                }));
+            }
+
             a.appendChild(document.createTextNode(songData.name));
+
             li.appendChild(a);
             li.dataset.libraryKind = 'song';
             li.dataset.songId = songData.id;
@@ -759,7 +771,7 @@ function handleFavoriteContextMenu(event) {
                 deleteFavoriteItem(item);
             }
         })
-        .catch(() => {});
+        .catch(() => { });
 }
 
 function handleFavoriteSongContextMenu(event) {
@@ -779,7 +791,7 @@ function handleFavoriteSongContextMenu(event) {
                 deleteFavoriteItem(item);
             }
         })
-        .catch(() => {});
+        .catch(() => { });
 }
 
 function handleSongContextMenu(event) {
@@ -792,7 +804,7 @@ function handleSongContextMenu(event) {
     event.preventDefault();
 
     ipcRenderer.invoke('song:context-menu', item.dataset.songPath)
-        .catch(() => {});
+        .catch(() => { });
 }
 
 function startFavoriteRename(item) {
@@ -1116,6 +1128,11 @@ function loadSong(songPath) {
         renderSong(songData);
 
         document.querySelector('#song-name').innerText = songData.name;
+
+        if (songData.collections[0] != undefined) {
+            document.querySelector('#song-number').innerText = songData.collections[0].collectionId.toUpperCase() + " #" + songData.collections[0].number;
+        }
+
         if (previewLyrics) {
             previewLyrics.replaceChildren();
         }
@@ -1152,6 +1169,11 @@ function renderSongPlaceholder() {
     const songName = rootElement.querySelector('#song-name');
     if (songName) {
         songName.innerText = '';
+    }
+
+    const songNumber = rootElement.querySelector('#song-number');
+    if (songNumber) {
+        songNumber.innerText = '';
     }
 
     if (previewLyrics) {
@@ -1223,14 +1245,14 @@ function updateProjection() {
 }
 
 function changeToPrevVerse() {
-    if(currentVerseIndex !== undefined && currentVerseIndex > 0) {
+    if (currentVerseIndex !== undefined && currentVerseIndex > 0) {
         currentVerseIndex--;
         updateProjection();
     }
 }
 
 function changeToNextVerse() {
-    if(currentVerseIndex !== undefined && Array.isArray(currentLyrics) && currentVerseIndex < currentLyrics.length - 1) {
+    if (currentVerseIndex !== undefined && Array.isArray(currentLyrics) && currentVerseIndex < currentLyrics.length - 1) {
         currentVerseIndex++;
         updateProjection();
     }
