@@ -582,6 +582,33 @@ const showSongContextMenu = (window, songPath) => {
     });
 };
 
+const showFavoriteSongContextMenu = (window) => {
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const finish = (action) => {
+            if (resolved) {
+                return;
+            }
+
+            resolved = true;
+            resolve(action);
+        };
+
+        const menu = Menu.buildFromTemplate([
+            {
+                label: 'Delete from Favorites',
+                click: () => finish('delete'),
+            },
+        ]);
+
+        menu.popup({
+            window,
+            callback: () => finish(null),
+        });
+    });
+};
+
 const showImportDialog = async (window, properties) => {
     return dialog.showOpenDialog(window, {
         properties,
@@ -1020,11 +1047,15 @@ ipcMain.on('black-screen', () => {
     }
   });
 
-ipcMain.handle('favorites:context-menu', async (event) => {
+ipcMain.handle('favorites:context-menu', async (event, item) => {
     const window = BrowserWindow.fromWebContents(event.sender);
 
     if (!window) {
         return null;
+    }
+
+    if (item?.kind === 'song') {
+        return showFavoriteSongContextMenu(window);
     }
 
     return showFavoritesContextMenu(window);

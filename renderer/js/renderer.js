@@ -712,7 +712,7 @@ function bindFavoriteSongContextMenu() {
         return;
     }
 
-    favoritesListRoot.addEventListener('contextmenu', handleSongContextMenu);
+    favoritesListRoot.addEventListener('contextmenu', handleFavoriteSongContextMenu);
     favoritesSongContextMenuDelegated = true;
 }
 
@@ -755,6 +755,26 @@ function handleFavoriteContextMenu(event) {
                 startFavoriteRename(item);
             }
 
+            if (action === 'delete') {
+                deleteFavoriteItem(item);
+            }
+        })
+        .catch(() => {});
+}
+
+function handleFavoriteSongContextMenu(event) {
+    const item = event.target.closest('li[data-favorite-kind="song"]');
+
+    if (!item || !favoritesListRoot?.contains(item)) {
+        return;
+    }
+
+    event.preventDefault();
+
+    ipcRenderer.invoke('favorites:context-menu', {
+        kind: item.dataset.favoriteKind,
+    })
+        .then((action) => {
             if (action === 'delete') {
                 deleteFavoriteItem(item);
             }
