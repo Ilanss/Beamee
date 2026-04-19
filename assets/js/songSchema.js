@@ -50,10 +50,6 @@ const normalizeLines = (section) => {
         return section.lines.map((line) => (typeof line === 'string' ? line : ''));
     }
 
-    if (typeof section?.text === 'string') {
-        return section.text.split(/\r?\n/);
-    }
-
     return [];
 };
 
@@ -66,11 +62,11 @@ const normalizeSections = (sections) => {
 
     return sections
         .map((section, index) => {
-            if (!isPlainObject(section) && typeof section !== 'string') {
+            if (!isPlainObject(section)) {
                 return null;
             }
 
-            const raw = isPlainObject(section) ? section : { text: section };
+            const raw = section;
             const baseId = normalizeId(raw.id || raw.title || raw.type || `section-${index + 1}`, `section-${index + 1}`);
             let id = baseId;
             let suffix = 2;
@@ -100,11 +96,11 @@ const normalizeCollections = (collections) => {
 
     return collections
         .map((collection, index) => {
-            if (!isPlainObject(collection) && typeof collection !== 'string') {
+            if (!isPlainObject(collection)) {
                 return null;
             }
 
-            const raw = isPlainObject(collection) ? collection : { name: collection };
+            const raw = collection;
             const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : '';
             const collectionId = normalizeId(raw.collectionId || name || raw.id || `collection-${index + 1}`, `collection-${index + 1}`);
             const reference = typeof raw.reference === 'string' && raw.reference.trim() ? raw.reference.trim() : undefined;
@@ -132,10 +128,6 @@ const normalizeArrangement = (arrangement, sections) => {
     if (Array.isArray(arrangement) && arrangement.length > 0) {
         return arrangement
             .map((item) => {
-                if (typeof item === 'string') {
-                    return { sectionId: item.trim() };
-                }
-
                 if (!isPlainObject(item) || typeof item.sectionId !== 'string') {
                     return null;
                 }
@@ -163,7 +155,7 @@ const normalizeSong = (song, options = {}) => {
     const rawId = typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : '';
     const id = normalizeId(rawId || sourceName || raw.name || options.fallbackId || 'song');
     const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : id;
-    const authors = toStringArray(raw.authors ?? raw.author ?? raw.artist);
+    const authors = toStringArray(raw.authors);
     const collections = normalizeCollections(raw.collections ?? options.collections ?? []);
 
     const sections = normalizeSections(Array.isArray(raw.sections) ? raw.sections : []);
@@ -198,29 +190,6 @@ const normalizeSong = (song, options = {}) => {
     }
 
     return normalized;
-};
-
-const migrateSongToV1 = (song, options = {}) => {
-    const raw = isPlainObject(song) ? song : {};
-    const legacySections = Array.isArray(raw.sections) && raw.sections.length > 0
-        ? raw.sections
-        : Array.isArray(raw.lyrics)
-            ? raw.lyrics.map((section, index) => ({
-                id: typeof section?.id === 'string' && section.id.trim()
-                    ? section.id.trim()
-                    : normalizeId(section?.type || `section-${index + 1}`, `section-${index + 1}`),
-                type: section?.type,
-                title: section?.title,
-                text: section?.text,
-                lines: section?.lines,
-            }))
-            : [];
-
-    return normalizeSong({
-        ...raw,
-        sections: legacySections,
-        arrangement: Array.isArray(raw.arrangement) && raw.arrangement.length > 0 ? raw.arrangement : legacySections.map((section) => ({ sectionId: section.id })),
-    }, options);
 };
 
 const validateSong = (song) => {
@@ -351,6 +320,5 @@ module.exports = {
     SECTION_TYPES,
     normalizeId,
     normalizeSong,
-    migrateSongToV1,
     validateSong,
 };
