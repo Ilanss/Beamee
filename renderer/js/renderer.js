@@ -12,10 +12,41 @@ let librarySearchWrap = null;
 let librarySearchIcon = null;
 let previewContent = null;
 let previewLyrics = null;
+let previewBox = null;
+let editorBox = null;
+let editorArrangementRoot = null;
+let songNameNode = null;
+let songNumberNode = null;
+let editSongButton = null;
+let editorControlsRoot = null;
 let mounted = false;
 let currentSongPath;
+let currentSongData = null;
+let currentSongDraft = null;
+let currentSongDraftIsNew = false;
+let currentSongDraftSourcePath = null;
+let currentCollectionSelection = '';
 let arrangementCheckbox = null;
 let currentUseArrangement = true;
+let editorSortable = null;
+let arrangementSortable = null;
+let isSongEditing = false;
+let songEditorDirty = false;
+
+const SECTION_TYPES = [
+    'verse',
+    'chorus',
+    'pre-chorus',
+    'bridge',
+    'intro',
+    'outro',
+    'tag',
+    'other',
+];
+
+function isPlainObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
 const cleanupTasks = [];
 
@@ -110,6 +141,177 @@ function createIconSpan(svgMarkup) {
     return icon;
 }
 
+function cloneSong(value) {
+    return JSON.parse(JSON.stringify(value || {}));
+}
+
+function createBlankSongDraft() {
+    return {
+        schemaVersion: 1,
+        id: 'song',
+        name: '',
+        authors: [],
+        collections: [],
+        sections: [],
+        arrangement: [],
+    };
+}
+
+function normalizeDraftCollectionId(value) {
+    return String(value ?? '')
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function generateCollectionIdFromName(name) {
+    const letters = String(name ?? '')
+        .trim()
+        .split(/\s+/)
+        .map((word) => word[0] || '')
+        .join('');
+
+    return normalizeDraftCollectionId(letters || name || 'collection');
+}
+
+function getSectionText(section) {
+    return Array.isArray(section?.lines) ? section.lines.join('\n') : '';
+}
+
+function setSectionText(section, value) {
+    const lines = String(value ?? '').split('\n');
+    section.lines = lines;
+}
+
+function ensureDraftShape(draft) {
+    const nextDraft = cloneSong(draft || createBlankSongDraft());
+
+    nextDraft.schemaVersion = 1;
+    nextDraft.name = typeof nextDraft.name === 'string' ? nextDraft.name : '';
+    nextDraft.authors = Array.isArray(nextDraft.authors) ? nextDraft.authors.filter((author) => typeof author === 'string') : [];
+    nextDraft.collections = Array.isArray(nextDraft.collections) ? nextDraft.collections : [];
+    nextDraft.sections = Array.isArray(nextDraft.sections) ? nextDraft.sections : [];
+    nextDraft.arrangement = Array.isArray(nextDraft.arrangement) ? nextDraft.arrangement : [];
+
+    nextDraft.sections = nextDraft.sections.map((section, index) => {
+        const nextSection = isPlainObject(section) ? { ...section } : {};
+
+        nextSection.id = normalizeDraftCollectionId(nextSection.id || nextSection.title || nextSection.type || `section-${index + 1}`) || `section-${index + 1}`;
+        nextSection.type = SECTION_TYPES.includes(nextSection.type) ? nextSection.type : 'other';
+        nextSection.title = typeof nextSection.title === 'string' && nextSection.title.trim() ? nextSection.title.trim() : '';
+        nextSection.lines = Array.isArray(nextSection.lines)
+            ? nextSection.lines.map((line) => (typeof line === 'string' ? line : ''))
+            : [];
+
+        return nextSection;
+    });
+
+    const sectionIds = new Set(nextDraft.sections.map((section) => section.id));
+    nextDraft.arrangement = nextDraft.arrangement
+        .map((item) => {
+            if (!isPlainObject(item) || typeof item.sectionId !== 'string') {
+                return null;
+            }
+
+            const sectionId = item.sectionId.trim();
+            if (!sectionId || !sectionIds.has(sectionId)) {
+                return null;
+            }
+
+            return {
+                sectionId,
+                label: typeof item.label === 'string' && item.label.trim() ? item.label.trim() : undefined,
+            };
+        })
+        .filter(Boolean);
+
+    if (nextDraft.arrangement.length === 0) {
+        nextDraft.arrangement = nextDraft.sections.map((section) => ({ sectionId: section.id }));
+    }
+
+    return nextDraft;
+}
+
+function updateDraftSectionIds(draft) {
+    const usedIds = new Set();
+
+    draft.sections = draft.sections.map((section, index) => {
+        const existingId = typeof section.id === 'string' ? section.id.trim() : '';
+        const baseId = normalizeDraftCollectionId(existingId || section.title || section.type || `section-${index + 1}`) || `section-${index + 1}`;
+        let candidate = existingId || baseId;
+        let suffix = 2;
+
+        while (usedIds.has(candidate)) {
+            candidate = `${baseId}-${suffix++}`;
+        }
+
+        usedIds.add(candidate);
+
+        return {
+            ...section,
+            id: candidate,
+            type: SECTION_TYPES.includes(section.type) ? section.type : 'other',
+            title: typeof section.title === 'string' ? section.title : '',
+            lines: Array.isArray(section.lines) ? section.lines : [],
+        };
+    });
+
+    const sectionIds = new Set(draft.sections.map((section) => section.id));
+    draft.arrangement = draft.arrangement.filter((item) => item && sectionIds.has(item.sectionId));
+
+    if (draft.arrangement.length === 0) {
+        draft.arrangement = draft.sections.map((section) => ({ sectionId: section.id }));
+    }
+}
+
+function getDraftCollectionIndex(draft) {
+    if (!draft?.collections?.length) {
+        return -1;
+    }
+
+    if (currentCollectionSelection === 'new') {
+        return -1;
+    }
+
+    const index = Number.parseInt(currentCollectionSelection, 10);
+    return Number.isInteger(index) ? index : 0;
+}
+
+function getSelectedCollectionDraft(draft) {
+    const index = getDraftCollectionIndex(draft);
+
+    if (index >= 0 && draft.collections[index]) {
+        return draft.collections[index];
+    }
+
+    return null;
+}
+
+function ensureCollectionDraft(draft) {
+    if (!draft.collections.length) {
+        const nextCollection = {
+            name: '',
+            collectionId: '',
+            reference: '',
+            number: undefined,
+        };
+
+        draft.collections.push(nextCollection);
+        currentCollectionSelection = '0';
+        return nextCollection;
+    }
+
+    const selected = getSelectedCollectionDraft(draft);
+    if (selected) {
+        return selected;
+    }
+
+    return draft.collections[0];
+}
+
 function bindSelectAllShortcut(input) {
     if (!input) {
         return;
@@ -123,6 +325,134 @@ function bindSelectAllShortcut(input) {
         event.preventDefault();
         input.select();
     });
+}
+
+function protectEditorControl(element) {
+    if (!element) {
+        return;
+    }
+
+    ['pointerdown', 'mousedown', 'click'].forEach((eventName) => {
+        element.addEventListener(eventName, (event) => {
+            event.stopPropagation();
+        });
+    });
+}
+
+function setEditMode(active) {
+    isSongEditing = Boolean(active);
+
+    if (previewBox) {
+        previewBox.hidden = isSongEditing;
+    }
+
+    if (editorBox) {
+        editorBox.hidden = !isSongEditing;
+    }
+
+    if (editSongButton) {
+        editSongButton.hidden = isSongEditing;
+    }
+}
+
+function updateEditSongButtonLabel() {
+    if (!editSongButton) {
+        return;
+    }
+
+    editSongButton.textContent = currentSongPath ? 'Edit' : 'New';
+}
+
+function markSongEditorDirty() {
+    if (currentSongDraft) {
+        songEditorDirty = true;
+    }
+}
+
+function resetSongEditorDirty() {
+    songEditorDirty = false;
+}
+
+async function promptSongSwitchDecision() {
+    if (!songEditorDirty) {
+        return 'discard';
+    }
+
+    const response = await ipcRenderer.invoke('editor:prompt-song-switch');
+
+    if (response === 0) {
+        return 'discard';
+    }
+
+    if (response === 1) {
+        return 'save';
+    }
+
+    return 'cancel';
+}
+
+function closeSongEditor({ reloadPath = currentSongPath, reloadCurrentSong = true } = {}) {
+    currentSongDraft = null;
+    currentSongDraftIsNew = false;
+    currentSongDraftSourcePath = null;
+    currentCollectionSelection = '';
+    resetSongEditorDirty();
+
+    if (arrangementSortable) {
+        arrangementSortable.destroy?.();
+        arrangementSortable = null;
+    }
+
+    if (editorSortable) {
+        editorSortable.destroy?.();
+        editorSortable = null;
+    }
+
+    if (editorControlsRoot) {
+        editorControlsRoot.remove();
+        editorControlsRoot = null;
+    }
+
+    setEditMode(false);
+
+    if (reloadPath) {
+        loadSong(reloadPath);
+        return;
+    }
+
+    if (reloadCurrentSong && currentSongPath) {
+        loadSong(currentSongPath);
+        return;
+    }
+
+    updateEditSongButtonLabel();
+    ipcRenderer.send('song:selected', null);
+    renderSongPlaceholder();
+}
+
+function isDirtySongEditor() {
+    return Boolean(isSongEditing && songEditorDirty);
+}
+
+async function handleSongSwitch(nextAction) {
+    if (!isDirtySongEditor()) {
+        await nextAction?.();
+        return;
+    }
+
+    const decision = await promptSongSwitchDecision();
+
+    if (decision === 'cancel') {
+        return;
+    }
+
+    if (decision === 'save') {
+        await saveCurrentSongDraft({ reloadSavedSong: false });
+    } else {
+        closeSongEditor({ reloadPath: null, reloadCurrentSong: false });
+    }
+
+    await nextAction?.();
 }
 
 function setLibrarySearchIcon(isSearching) {
@@ -217,7 +547,7 @@ function applyPreviewPreferences(preferences) {
 
 }
 
-function renderSong(songData) {
+function renderSongView(songData) {
     if (!main) {
         return;
     }
@@ -254,6 +584,575 @@ function renderSong(songData) {
     ipcRenderer.send('song:loaded', verses.length);
 }
 
+function renderSongHeader() {
+    if (!songNameNode || !songNumberNode) {
+        return;
+    }
+
+    if (currentSongDraft && isSongEditing) {
+        const draft = currentSongDraft;
+        const collection = ensureCollectionDraft(draft);
+
+        songNameNode.replaceChildren();
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.value = draft.name || '';
+        titleInput.placeholder = 'Song title';
+        titleInput.className = 'input input-bordered input-sm w-full max-w-md';
+        titleInput.addEventListener('input', () => {
+            draft.name = titleInput.value;
+            markSongEditorDirty();
+        });
+        songNameNode.appendChild(titleInput);
+
+        songNumberNode.replaceChildren();
+        const collectionSpan = document.createElement('span');
+        collectionSpan.className = 'mr-2';
+        collectionSpan.textContent = `${collection.collectionId || 'collection'} #`;
+
+        const numberInput = document.createElement('input');
+        numberInput.type = 'text';
+        numberInput.value = collection.number == null ? '' : String(collection.number);
+        numberInput.placeholder = '#';
+        numberInput.className = 'input input-ghost input-xs w-16 text-right';
+        numberInput.addEventListener('input', () => {
+            const parsed = Number.parseInt(numberInput.value, 10);
+            collection.number = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+            markSongEditorDirty();
+        });
+
+        songNumberNode.appendChild(collectionSpan);
+        songNumberNode.appendChild(numberInput);
+        return;
+    }
+
+    if (currentSongData) {
+        songNameNode.textContent = currentSongData.name || '';
+        const collection = currentSongData.collections?.[0];
+        songNumberNode.textContent = collection?.number != null && collection?.collectionId
+            ? `${String(collection.collectionId).toUpperCase()} #${collection.number}`
+            : '';
+        return;
+    }
+
+    songNameNode.textContent = '';
+    songNumberNode.textContent = '';
+}
+
+function renderSongSectionsEditor() {
+    if (!main || !currentSongDraft || !isSongEditing) {
+        return;
+    }
+
+    const draft = currentSongDraft;
+    updateDraftSectionIds(draft);
+
+    main.replaceChildren();
+
+    const addSectionButton = document.createElement('button');
+    addSectionButton.type = 'button';
+    addSectionButton.className = 'btn btn-sm btn-outline mb-2';
+    addSectionButton.textContent = '+ Add section';
+    addSectionButton.addEventListener('click', () => {
+        draft.sections.push({
+            id: `section-${draft.sections.length + 1}`,
+            type: 'other',
+            title: '',
+            lines: [],
+        });
+        markSongEditorDirty();
+        updateDraftSectionIds(draft);
+        renderSongSectionsEditor();
+        renderPreviewEditor();
+    });
+
+    const controlsLi = document.createElement('li');
+    controlsLi.appendChild(addSectionButton);
+    main.appendChild(controlsLi);
+
+    draft.sections.forEach((section, index) => {
+        const li = document.createElement('li');
+        li.className = 'mb-3 rounded-md border border-base-300 p-3 bg-base-100';
+        li.dataset.sectionId = section.id;
+
+        const header = document.createElement('div');
+        header.className = 'flex items-center gap-2 mb-2';
+
+        const dragHandle = document.createElement('span');
+        dragHandle.className = 'section-drag-handle cursor-grab select-none';
+        dragHandle.textContent = '::';
+        header.appendChild(dragHandle);
+
+        const typeSelect = document.createElement('select');
+        typeSelect.className = 'select select-bordered select-xs';
+        SECTION_TYPES.forEach((type) => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.textContent = type;
+            typeSelect.appendChild(option);
+        });
+        typeSelect.value = section.type || 'other';
+        protectEditorControl(typeSelect);
+        typeSelect.addEventListener('change', () => {
+            section.type = typeSelect.value;
+            markSongEditorDirty();
+            renderPreviewEditor();
+        });
+        header.appendChild(typeSelect);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-xs btn-ghost text-error ml-auto';
+        removeButton.textContent = 'Remove';
+        removeButton.addEventListener('click', () => {
+            draft.sections.splice(index, 1);
+            draft.arrangement = draft.arrangement.filter((item) => item.sectionId !== section.id);
+            markSongEditorDirty();
+            updateDraftSectionIds(draft);
+            renderSongSectionsEditor();
+            renderPreviewEditor();
+        });
+        header.appendChild(removeButton);
+
+        const titleInput = document.createElement('input');
+        titleInput.type = 'text';
+        titleInput.placeholder = 'Section title';
+        titleInput.value = section.title || '';
+        titleInput.className = 'input input-bordered input-xs w-full mb-2';
+        protectEditorControl(titleInput);
+        titleInput.addEventListener('input', () => {
+            section.title = titleInput.value;
+            markSongEditorDirty();
+            renderPreviewEditor();
+        });
+
+        const textArea = document.createElement('textarea');
+        textArea.className = 'textarea textarea-bordered w-full min-h-32';
+        textArea.value = getSectionText(section);
+        protectEditorControl(textArea);
+        textArea.addEventListener('input', () => {
+            setSectionText(section, textArea.value);
+            markSongEditorDirty();
+            renderPreviewEditor();
+        });
+
+        li.appendChild(header);
+        li.appendChild(titleInput);
+        li.appendChild(textArea);
+        main.appendChild(li);
+    });
+
+    if (!editorSortable) {
+        editorSortable = Sortable.create(main, {
+            draggable: 'li[data-section-id]',
+            handle: '.section-drag-handle',
+            animation: 150,
+            filter: 'button, input, textarea, select',
+            preventOnFilter: false,
+            onEnd: () => {
+                const orderedIds = Array.from(main.querySelectorAll('li[data-section-id]')).map((item) => item.dataset.sectionId);
+                draft.sections = orderedIds.map((sectionId) => draft.sections.find((section) => section.id === sectionId)).filter(Boolean);
+                updateDraftSectionIds(draft);
+                renderPreviewEditor();
+            },
+        });
+    }
+}
+
+function renderPreviewEditor() {
+    if (!editorArrangementRoot || !currentSongDraft || !isSongEditing) {
+        return;
+    }
+
+    if (arrangementSortable) {
+        arrangementSortable.destroy?.();
+        arrangementSortable = null;
+    }
+
+    editorArrangementRoot.replaceChildren();
+
+    const title = document.createElement('p');
+    title.className = 'text-xs uppercase mb-2';
+    title.textContent = 'Arrangement maker';
+    editorArrangementRoot.appendChild(title);
+
+    const list = document.createElement('ul');
+    list.className = 'space-y-2';
+
+    currentSongDraft.arrangement.forEach((step, index) => {
+        const item = document.createElement('li');
+        item.className = 'flex items-center gap-2';
+        item.dataset.arrangementIndex = String(index);
+
+        const handle = document.createElement('span');
+        handle.className = 'arrangement-drag-handle cursor-grab select-none';
+        handle.textContent = '::';
+        item.appendChild(handle);
+
+        const select = document.createElement('select');
+        select.className = 'select select-bordered select-xs flex-1';
+        protectEditorControl(select);
+        currentSongDraft.sections.forEach((section) => {
+            const option = document.createElement('option');
+            option.value = section.id;
+            option.textContent = `${section.type || 'other'}${section.title ? ` - ${section.title}` : ''}`;
+            select.appendChild(option);
+        });
+        select.value = step.sectionId;
+        select.addEventListener('change', () => {
+            step.sectionId = select.value;
+            markSongEditorDirty();
+        });
+        item.appendChild(select);
+
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-xs btn-ghost text-error';
+        removeButton.textContent = 'Remove';
+        removeButton.addEventListener('click', () => {
+            currentSongDraft.arrangement.splice(index, 1);
+            markSongEditorDirty();
+            renderPreviewEditor();
+        });
+        item.appendChild(removeButton);
+
+        list.appendChild(item);
+    });
+
+    editorArrangementRoot.appendChild(list);
+
+    const addButton = document.createElement('button');
+    addButton.type = 'button';
+    addButton.className = 'btn btn-sm btn-outline mt-3';
+    addButton.textContent = '+ Add arrangement item';
+    addButton.addEventListener('click', () => {
+        const firstSection = currentSongDraft.sections[0];
+        if (firstSection) {
+            currentSongDraft.arrangement.push({ sectionId: firstSection.id });
+            markSongEditorDirty();
+            renderPreviewEditor();
+        }
+    });
+
+    editorArrangementRoot.appendChild(addButton);
+
+    arrangementSortable = Sortable.create(list, {
+        draggable: 'li',
+        handle: '.arrangement-drag-handle',
+        animation: 150,
+        preventOnFilter: false,
+        onEnd: () => {
+            const orderedIndexes = Array.from(list.querySelectorAll('li[data-arrangement-index]')).map((item) => Number.parseInt(item.dataset.arrangementIndex, 10));
+            currentSongDraft.arrangement = orderedIndexes.map((index) => currentSongDraft.arrangement[index]).filter(Boolean);
+            renderPreviewEditor();
+        },
+    });
+}
+
+function renderCollectionEditor() {
+    if (!editorBox || !currentSongDraft || !isSongEditing) {
+        return;
+    }
+
+    if (editorControlsRoot) {
+        editorControlsRoot.remove();
+    }
+
+    editorControlsRoot = document.createElement('div');
+    editorControlsRoot.className = 'space-y-3 mt-3';
+
+    const collectionRow = document.createElement('div');
+    collectionRow.className = 'space-y-2';
+
+    const selector = document.createElement('select');
+    selector.className = 'select select-bordered select-sm w-full';
+    currentSongDraft.collections.forEach((collection, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = `${collection.name || collection.collectionId || `Collection ${index + 1}`}`;
+        selector.appendChild(option);
+    });
+    const newOption = document.createElement('option');
+    newOption.value = 'new';
+    newOption.textContent = 'new collection';
+    selector.appendChild(newOption);
+    selector.value = currentCollectionSelection || (currentSongDraft.collections.length ? '0' : 'new');
+    protectEditorControl(selector);
+    selector.addEventListener('change', () => {
+        currentCollectionSelection = selector.value;
+        renderCollectionEditor();
+        renderSongHeader();
+    });
+
+    collectionRow.appendChild(selector);
+
+    const selected = selector.value === 'new' ? null : currentSongDraft.collections[Number.parseInt(selector.value, 10)];
+    const collection = selected || null;
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'input input-bordered input-sm w-full';
+    nameInput.placeholder = 'Collection name';
+    nameInput.value = collection?.name || '';
+    protectEditorControl(nameInput);
+    nameInput.addEventListener('input', () => {
+        if (collection) {
+            collection.name = nameInput.value;
+            markSongEditorDirty();
+            renderSongHeader();
+        } else {
+            const nextCollection = {
+                name: nameInput.value,
+                collectionId: '',
+                reference: '',
+                number: undefined,
+            };
+            currentSongDraft.collections.push(nextCollection);
+            currentCollectionSelection = String(currentSongDraft.collections.length - 1);
+            markSongEditorDirty();
+            renderCollectionEditor();
+            renderSongHeader();
+        }
+    });
+
+    const idInput = document.createElement('input');
+    idInput.className = 'input input-bordered input-sm w-full';
+    idInput.placeholder = 'Collection id';
+    idInput.value = collection?.collectionId || '';
+    protectEditorControl(idInput);
+    idInput.addEventListener('input', () => {
+        if (collection) {
+            collection.collectionId = idInput.value;
+            markSongEditorDirty();
+            renderSongHeader();
+        }
+    });
+
+    const idHelper = document.createElement('p');
+    idHelper.className = 'text-xs opacity-70';
+    idHelper.textContent = 'Leave id empty to generate from the name.';
+
+    const numberInput = document.createElement('input');
+    numberInput.className = 'input input-bordered input-sm w-full';
+    numberInput.placeholder = 'Collection number';
+    numberInput.value = collection?.number == null ? '' : String(collection.number);
+    protectEditorControl(numberInput);
+    numberInput.addEventListener('input', () => {
+        if (collection) {
+            const parsed = Number.parseInt(numberInput.value, 10);
+            collection.number = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+            markSongEditorDirty();
+            renderSongHeader();
+        }
+    });
+
+    if (!collection && currentSongDraft.collections.length === 0) {
+        currentCollectionSelection = 'new';
+    }
+
+    collectionRow.appendChild(nameInput);
+    collectionRow.appendChild(idInput);
+    collectionRow.appendChild(idHelper);
+    collectionRow.appendChild(numberInput);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex gap-2';
+
+    const saveButton = document.createElement('button');
+    saveButton.type = 'button';
+    saveButton.className = 'btn btn-sm btn-primary';
+    saveButton.textContent = 'Save';
+    saveButton.addEventListener('click', () => {
+        saveCurrentSongDraft().catch((error) => console.error('Failed to save song draft', error));
+    });
+
+    const cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'btn btn-sm btn-ghost';
+    cancelButton.textContent = 'Cancel';
+    cancelButton.addEventListener('click', () => {
+        cancelSongEdit();
+    });
+
+    actions.appendChild(saveButton);
+    actions.appendChild(cancelButton);
+
+    editorControlsRoot.appendChild(collectionRow);
+    editorControlsRoot.appendChild(actions);
+    editorBox.appendChild(editorControlsRoot);
+}
+
+function renderEditorMode() {
+    if (!currentSongDraft) {
+        return;
+    }
+
+    renderSongHeader();
+    renderSongSectionsEditor();
+    renderPreviewEditor();
+    renderCollectionEditor();
+}
+
+function beginSongEdit(draft, isNew = false) {
+    currentSongDraft = ensureDraftShape(draft);
+    currentSongDraftIsNew = isNew;
+    currentSongDraftSourcePath = isNew ? null : currentSongPath;
+    currentCollectionSelection = '0';
+    resetSongEditorDirty();
+
+    setEditMode(true);
+
+    renderEditorMode();
+}
+
+function openSongEditorForCurrentSong() {
+    beginSongEdit(currentSongData ? cloneSong(currentSongData) : createBlankSongDraft(), Boolean(currentSongPath));
+}
+
+function openNewSongDraft() {
+    currentSongData = null;
+    currentSongPath = null;
+    currentLyrics = [];
+    currentVerseIndex = undefined;
+    resetSongEditorDirty();
+    ipcRenderer.send('song:selected', null);
+    if (main) {
+        main.replaceChildren();
+    }
+
+    beginSongEdit(createBlankSongDraft(), true);
+}
+
+function cancelSongEdit() {
+    closeSongEditor({ reloadPath: currentSongPath });
+}
+
+function syncCurrentCollectionFromEditor(draft) {
+    if (!draft.collections.length) {
+        return;
+    }
+
+    let collection = getSelectedCollectionDraft(draft);
+
+    if (!collection && currentCollectionSelection === 'new') {
+        const nameInput = editorControlsRoot?.querySelector('input[placeholder="Collection name"]');
+        const idInput = editorControlsRoot?.querySelector('input[placeholder="Collection id"]');
+        const numberInput = editorControlsRoot?.querySelector('input[placeholder="Collection number"]');
+
+        const name = typeof nameInput?.value === 'string' ? nameInput.value.trim() : '';
+        const collectionId = typeof idInput?.value === 'string' && idInput.value.trim()
+            ? idInput.value.trim()
+            : generateCollectionIdFromName(name);
+
+        collection = {
+            name,
+            collectionId,
+            reference: '',
+            number: undefined,
+        };
+
+        const parsed = Number.parseInt(numberInput?.value || '', 10);
+        if (Number.isInteger(parsed) && parsed > 0) {
+            collection.number = parsed;
+        }
+
+        draft.collections.push(collection);
+        currentCollectionSelection = String(draft.collections.length - 1);
+    }
+
+    if (!collection) {
+        return;
+    }
+
+    const nameInput = editorControlsRoot?.querySelector('input[placeholder="Collection name"]');
+    const idInput = editorControlsRoot?.querySelector('input[placeholder="Collection id"]');
+    const numberInput = editorControlsRoot?.querySelector('input[placeholder="Collection number"]');
+
+    collection.name = typeof nameInput?.value === 'string' && nameInput.value.trim()
+        ? nameInput.value.trim()
+        : collection.name || draft.name || 'Collection 1';
+    collection.collectionId = typeof idInput?.value === 'string' && idInput.value.trim()
+        ? idInput.value.trim()
+        : generateCollectionIdFromName(collection.name);
+
+    const parsed = Number.parseInt(numberInput?.value || '', 10);
+    collection.number = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+async function saveCurrentSongDraft(options = {}) {
+    if (!currentSongDraft) {
+        return;
+    }
+
+    const draft = ensureDraftShape(currentSongDraft);
+    syncCurrentCollectionFromEditor(draft);
+
+    const titleInput = songNameNode?.querySelector('input');
+    if (titleInput) {
+        draft.name = titleInput.value.trim();
+    }
+
+    updateDraftSectionIds(draft);
+
+    const payload = {
+        ...draft,
+        id: currentSongDraftIsNew
+            ? (normalizeDraftCollectionId(draft.name || draft.id || 'song') || 'song')
+            : (currentSongData?.id || draft.id || 'song'),
+    };
+
+    const result = await ipcRenderer.invoke('song:save', {
+        song: payload,
+        targetPath: currentSongDraftIsNew ? null : currentSongDraftSourcePath || currentSongPath,
+        isNew: currentSongDraftIsNew,
+    });
+
+    if (!result?.ok) {
+        window.alert(result?.error || 'Unable to save song.');
+        return;
+    }
+
+    if (result.canceled) {
+        return;
+    }
+
+    currentSongPath = result.filePath || currentSongPath;
+    currentSongDraft = null;
+    currentSongDraftIsNew = false;
+    currentSongDraftSourcePath = null;
+    currentCollectionSelection = '';
+    resetSongEditorDirty();
+
+    setEditMode(false);
+
+    if (editorControlsRoot) {
+        editorControlsRoot.remove();
+        editorControlsRoot = null;
+    }
+
+    if (arrangementSortable) {
+        arrangementSortable.destroy?.();
+        arrangementSortable = null;
+    }
+
+    if (editorSortable) {
+        editorSortable.destroy?.();
+        editorSortable = null;
+    }
+
+    if (options.reloadSavedSong !== false) {
+        loadSong(currentSongPath);
+
+        if (previewLyrics) {
+            previewLyrics.replaceChildren();
+        }
+    }
+
+    const state = await ipcRenderer.invoke('library:state');
+    if (state?.library) {
+        createFileList(state.library, libraryListContainer);
+    }
+}
+
 const isMountCurrent = () => mounted && (!mountContext || typeof mountContext.isCurrent !== 'function' || mountContext.isCurrent());
 
 export async function mount(root, context = {}) {
@@ -268,6 +1167,8 @@ export async function mount(root, context = {}) {
     prevVerse = rootElement.querySelector('#prev-verse');
     nextVerse = rootElement.querySelector('#next-verse');
     main = rootElement.querySelector('#verse-display ul');
+    songNameNode = rootElement.querySelector('#song-name');
+    songNumberNode = rootElement.querySelector('#song-number');
     libraryListContainer = rootElement.querySelector('#library-list ul');
     librarySearchInput = rootElement.querySelector('#library-search');
     librarySearchWrap = rootElement.querySelector('#library-search-wrap');
@@ -275,14 +1176,22 @@ export async function mount(root, context = {}) {
     favoritesListContainer = rootElement.querySelector('#favorites-list');
     favoritesListRoot = favoritesListContainer?.querySelector('ul');
     createPlaylistButton = rootElement.querySelector('#create-playlist');
+    previewBox = rootElement.querySelector('#preview-box');
+    editorBox = rootElement.querySelector('#editor-box');
     previewContent = rootElement.querySelector('#preview');
+    editorArrangementRoot = editorBox?.querySelector('#editor-arrangement') || null;
+    editorControlsRoot = null;
     previewLyrics = document.createElement('div');
     arrangementCheckbox = rootElement.querySelector('#arrangement');
+    editSongButton = rootElement.querySelector('#edit-song-button');
 
     if (previewContent) {
         previewLyrics.id = 'preview-lyrics';
         previewContent.appendChild(previewLyrics);
     }
+
+    updateEditSongButtonLabel();
+    setEditMode(false);
 
     onIpc('projection:status', (isProjectionOn) => {
         setToggleProjectionIcon(isProjectionOn);
@@ -307,8 +1216,13 @@ export async function mount(root, context = {}) {
             updateProjection();
         }
 
-        if (currentSongPath && previousUseArrangement !== currentUseArrangement) {
+        if (currentSongPath && previousUseArrangement !== currentUseArrangement && !isSongEditing) {
             renderCurrentSong();
+            return;
+        }
+
+        if (isSongEditing) {
+            renderPreviewEditor();
         }
     });
 
@@ -332,7 +1246,7 @@ export async function mount(root, context = {}) {
                 createFavoritesList(state.favorites);
             }
 
-            if (currentSongPath) {
+            if (currentSongPath && !isSongEditing) {
                 loadSong(currentSongPath);
             }
         } catch (error) {
@@ -384,9 +1298,39 @@ export async function mount(root, context = {}) {
             console.error('Failed to save arrangement preference', error);
         });
 
-        if (currentSongPath) {
+        if (currentSongPath && !isSongEditing) {
             renderCurrentSong();
+            return;
         }
+
+        if (isSongEditing) {
+            renderPreviewEditor();
+        }
+    });
+
+    on(editSongButton, 'click', () => {
+        openSongEditorForCurrentSong();
+    });
+
+    on(rootElement.querySelector('#create-song'), 'click', (event) => {
+        event.preventDefault();
+        handleSongSwitch(async () => {
+            openNewSongDraft();
+        }).catch((error) => {
+            console.warn('Failed to open new song draft', error);
+        });
+    });
+
+    onIpc('song:new', () => {
+        handleSongSwitch(async () => {
+            openNewSongDraft();
+        }).catch((error) => {
+            console.warn('Failed to open new song draft', error);
+        });
+    });
+
+    onIpc('song:edit', () => {
+        openSongEditorForCurrentSong();
     });
 
     if (favoritesListRoot) {
@@ -443,6 +1387,8 @@ export async function mount(root, context = {}) {
 
         if (currentSongPath) {
             renderCurrentSong();
+        } else {
+            renderSongPlaceholder();
         }
     } catch (error) {
         if (!isMountCurrent()) {
@@ -483,11 +1429,20 @@ export async function unmount() {
     createPlaylistButton = null;
     previewContent = null;
     previewLyrics = null;
+    previewBox = null;
+    editorBox = null;
+    editorArrangementRoot = null;
+    songNameNode = null;
+    songNumberNode = null;
+    editSongButton = null;
+    editorControlsRoot = null;
     libraryClickDelegated = false;
     favoritesClickDelegated = false;
     favoritesContextMenuDelegated = false;
     librarySongContextMenuDelegated = false;
     favoritesSongContextMenuDelegated = false;
+    editorSortable = null;
+    arrangementSortable = null;
     mountContext = null;
 }
 
@@ -1002,12 +1957,22 @@ function bindSongClickDelegation() {
             return;
         }
 
-        document.querySelectorAll('a.active').forEach((anchor) => {
-            anchor.classList.remove('active');
-        });
+        const nextSongPath = item.dataset.songPath;
 
-        item.querySelector('a')?.classList.add('active');
-        loadSong(item.dataset.songPath);
+        if (nextSongPath && nextSongPath === currentSongPath) {
+            return;
+        }
+
+        handleSongSwitch(async () => {
+            document.querySelectorAll('a.active').forEach((anchor) => {
+                anchor.classList.remove('active');
+            });
+
+            item.querySelector('a')?.classList.add('active');
+            loadSong(nextSongPath);
+        }).catch((error) => {
+            console.warn('Failed to switch songs', error);
+        });
     };
 
     libraryListContainer?.addEventListener('click', handleSongClick);
@@ -1179,17 +2144,20 @@ function loadSong(songPath) {
     }
 
     try {
+        setEditMode(false);
+        resetSongEditorDirty();
         const songData = JSON.parse(window.fs.readFileSync(songPath, 'utf8'));
 
         currentSongPath = songPath;
+        currentSongData = songData;
+        currentSongDraft = null;
+        currentSongDraftIsNew = false;
+        currentSongDraftSourcePath = null;
+        currentCollectionSelection = '';
+        updateEditSongButtonLabel();
         ipcRenderer.send('song:selected', songPath);
-        renderSong(songData);
-
-        document.querySelector('#song-name').innerText = songData.name;
-
-        if (songData.collections[0] != undefined) {
-            document.querySelector('#song-number').innerText = songData.collections[0].collectionId.toUpperCase() + " #" + songData.collections[0].number;
-        }
+        renderSongView(songData);
+        renderSongHeader();
 
         if (previewLyrics) {
             previewLyrics.replaceChildren();
@@ -1197,10 +2165,15 @@ function loadSong(songPath) {
     } catch (error) {
         console.error('Failed to load song', error);
         currentSongPath = null;
+        currentSongData = null;
+        currentSongDraft = null;
+        updateEditSongButtonLabel();
         ipcRenderer.send('song:selected', null);
         ipcRenderer.send('song:loaded', 0);
         currentLyrics = [];
         currentVerseIndex = undefined;
+        setEditMode(false);
+        resetSongEditorDirty();
         renderSongPlaceholder();
     }
 }
@@ -1224,14 +2197,12 @@ function renderSongPlaceholder() {
     placeholder.appendChild(paragraph);
     main.appendChild(placeholder);
 
-    const songName = rootElement.querySelector('#song-name');
-    if (songName) {
-        songName.innerText = '';
+    if (songNameNode) {
+        songNameNode.innerHTML = '';
     }
 
-    const songNumber = rootElement.querySelector('#song-number');
-    if (songNumber) {
-        songNumber.innerText = '';
+    if (songNumberNode) {
+        songNumberNode.innerHTML = '';
     }
 
     if (previewLyrics) {
