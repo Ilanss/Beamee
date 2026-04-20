@@ -29,8 +29,8 @@ const normalizeRoute = (value) => {
 };
 
 const resolveAssetPath = (relativePath) => {
-  const url = new URL(relativePath, import.meta.url);
-  return decodeURIComponent(url.pathname);
+  const pathname = decodeURIComponent(new URL(relativePath, import.meta.url).pathname);
+  return /^\/[A-Za-z]:\//.test(pathname) ? pathname.slice(1) : pathname;
 };
 
 const readHtml = (relativePath) => {
