@@ -1,5 +1,5 @@
 <div class="wrapper h-full">
-  <div class="sidebar menu menu-xs bg-base-200 w-full max-w-xs flex flex-col min-h-0">
+  <div class="sidebar menu menu-xs bg-base-200 w-full flex flex-col min-h-0">
     <img src="img/beamee-logo.png" alt="" class="object-contain h-10 object-left mb-2">
     <div class="library flex flex-col flex-1 min-h-0">
       <div id="library-search-wrap"
@@ -48,7 +48,7 @@
   </div>
   <div id="verse-display" class="prose px-4">
     <div class="flex justify-between items-center gap-2">
-      <h2 id="song-name" class="my-4"></h2>
+      <h2 id="song-name" class="my-4 mb-0"></h2>
       <h3 id="song-number" class="mb-0 text-gray-500 font-thin text-sm"></h3>
     </div>
     <ul class="list-none p-0">
@@ -149,7 +149,7 @@
 </template>
 
 <template id="song-section-card-template">
-  <li class="mb-3 rounded-md border border-base-300 bg-base-100 dark:bg-base-300 p-3">
+  <li class="mb-3 rounded-md border border-base-300 bg-base-100 dark:bg-base-300 p-2">
     <div class="mb-2 flex items-center gap-2">
       <span class="section-drag-handle cursor-grab select-none" data-role="drag-handle">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
@@ -159,6 +159,7 @@
         </svg>
       </span>
       <select class="select select-bordered select-xs" data-role="type"></select>
+      <input type="text" placeholder="Section title" class="input input-bordered input-xs w-full" data-role="title">
       <button type="button" class="btn btn-xs btn-ghost ml-auto text-error round" data-role="remove">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
           class="size-4">
@@ -168,7 +169,6 @@
 
       </button>
     </div>
-    <input type="text" placeholder="Section title" class="input input-bordered input-xs mb-2 w-full" data-role="title">
     <textarea class="textarea textarea-bordered min-h-32 w-full" data-role="text"></textarea>
   </li>
 </template>
