@@ -141,6 +141,23 @@ function createIconSpan(svgMarkup) {
     return icon;
 }
 
+function cloneTemplate(templateId) {
+    const template = document.getElementById(templateId);
+
+    if (!(template instanceof HTMLTemplateElement)) {
+        return null;
+    }
+
+    const fragment = template.content.cloneNode(true);
+    const node = fragment.firstElementChild;
+
+    return node instanceof HTMLElement ? node : null;
+}
+
+function getTemplateElement(root, selector) {
+    return root?.querySelector(selector) || null;
+}
+
 function cloneSong(value) {
     return JSON.parse(JSON.stringify(value || {}));
 }
@@ -360,7 +377,16 @@ function updateEditSongButtonLabel() {
         return;
     }
 
-    editSongButton.textContent = currentSongPath ? 'Edit' : 'New';
+    editSongButton.innerHTML = currentSongPath ?
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="24">
+          <path
+            d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
+        </svg>` :
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+          <path fill-rule="evenodd"
+            d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z"
+            clip-rule="evenodd" />
+        </svg>`;
 }
 
 function markSongEditorDirty() {
@@ -671,40 +697,37 @@ function renderSongSectionsEditor() {
     main.appendChild(controlsLi);
 
     draft.sections.forEach((section, index) => {
-        const li = document.createElement('li');
-        li.className = 'mb-3 rounded-md border border-base-300 p-3 bg-base-100';
+        const li = cloneTemplate('song-section-card-template');
+
+        if (!li) {
+            return;
+        }
+
         li.dataset.sectionId = section.id;
 
-        const header = document.createElement('div');
-        header.className = 'flex items-center gap-2 mb-2';
+        const typeSelect = getTemplateElement(li, '[data-role="type"]');
 
-        const dragHandle = document.createElement('span');
-        dragHandle.className = 'section-drag-handle cursor-grab select-none';
-        dragHandle.textContent = '::';
-        header.appendChild(dragHandle);
+        if (typeSelect instanceof HTMLSelectElement) {
+            typeSelect.replaceChildren();
+            SECTION_TYPES.forEach((type) => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                typeSelect.appendChild(option);
+            });
 
-        const typeSelect = document.createElement('select');
-        typeSelect.className = 'select select-bordered select-xs';
-        SECTION_TYPES.forEach((type) => {
-            const option = document.createElement('option');
-            option.value = type;
-            option.textContent = type;
-            typeSelect.appendChild(option);
-        });
-        typeSelect.value = section.type || 'other';
-        protectEditorControl(typeSelect);
-        typeSelect.addEventListener('change', () => {
-            section.type = typeSelect.value;
-            markSongEditorDirty();
-            renderPreviewEditor();
-        });
-        header.appendChild(typeSelect);
+            typeSelect.value = section.type || 'other';
+            protectEditorControl(typeSelect);
+            typeSelect.addEventListener('change', () => {
+                section.type = typeSelect.value;
+                markSongEditorDirty();
+                renderPreviewEditor();
+            });
+        }
 
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.className = 'btn btn-xs btn-ghost text-error ml-auto';
-        removeButton.textContent = 'Remove';
-        removeButton.addEventListener('click', () => {
+        const removeButton = getTemplateElement(li, '[data-role="remove"]');
+
+        removeButton?.addEventListener('click', () => {
             draft.sections.splice(index, 1);
             draft.arrangement = draft.arrangement.filter((item) => item.sectionId !== section.id);
             markSongEditorDirty();
@@ -712,33 +735,31 @@ function renderSongSectionsEditor() {
             renderSongSectionsEditor();
             renderPreviewEditor();
         });
-        header.appendChild(removeButton);
 
-        const titleInput = document.createElement('input');
-        titleInput.type = 'text';
-        titleInput.placeholder = 'Section title';
-        titleInput.value = section.title || '';
-        titleInput.className = 'input input-bordered input-xs w-full mb-2';
-        protectEditorControl(titleInput);
-        titleInput.addEventListener('input', () => {
-            section.title = titleInput.value;
-            markSongEditorDirty();
-            renderPreviewEditor();
-        });
+        const titleInput = getTemplateElement(li, '[data-role="title"]');
 
-        const textArea = document.createElement('textarea');
-        textArea.className = 'textarea textarea-bordered w-full min-h-32';
-        textArea.value = getSectionText(section);
-        protectEditorControl(textArea);
-        textArea.addEventListener('input', () => {
-            setSectionText(section, textArea.value);
-            markSongEditorDirty();
-            renderPreviewEditor();
-        });
+        if (titleInput instanceof HTMLInputElement) {
+            titleInput.value = section.title || '';
+            protectEditorControl(titleInput);
+            titleInput.addEventListener('input', () => {
+                section.title = titleInput.value;
+                markSongEditorDirty();
+                renderPreviewEditor();
+            });
+        }
 
-        li.appendChild(header);
-        li.appendChild(titleInput);
-        li.appendChild(textArea);
+        const textArea = getTemplateElement(li, '[data-role="text"]');
+
+        if (textArea instanceof HTMLTextAreaElement) {
+            textArea.value = getSectionText(section);
+            protectEditorControl(textArea);
+            textArea.addEventListener('input', () => {
+                setSectionText(section, textArea.value);
+                markSongEditorDirty();
+                renderPreviewEditor();
+            });
+        }
+
         main.appendChild(li);
     });
 
@@ -780,51 +801,51 @@ function renderPreviewEditor() {
     list.className = 'space-y-2';
 
     currentSongDraft.arrangement.forEach((step, index) => {
-        const item = document.createElement('li');
-        item.className = 'flex items-center gap-2';
+        const item = cloneTemplate('song-arrangement-item-template');
+
+        if (!item) {
+            return;
+        }
+
         item.dataset.arrangementIndex = String(index);
 
-        const handle = document.createElement('span');
-        handle.className = 'arrangement-drag-handle cursor-grab select-none';
-        handle.textContent = '::';
-        item.appendChild(handle);
+        const select = getTemplateElement(item, '[data-role="section"]');
 
-        const select = document.createElement('select');
-        select.className = 'select select-bordered select-xs flex-1';
-        protectEditorControl(select);
-        currentSongDraft.sections.forEach((section) => {
-            const option = document.createElement('option');
-            option.value = section.id;
-            option.textContent = `${section.type || 'other'}${section.title ? ` - ${section.title}` : ''}`;
-            select.appendChild(option);
-        });
-        select.value = step.sectionId;
-        select.addEventListener('change', () => {
-            step.sectionId = select.value;
-            markSongEditorDirty();
-        });
-        item.appendChild(select);
+        if (select instanceof HTMLSelectElement) {
+            select.replaceChildren();
+            currentSongDraft.sections.forEach((section) => {
+                const option = document.createElement('option');
+                option.value = section.id;
+                option.textContent = `${section.type || 'other'}${section.title ? ` - ${section.title}` : ''}`;
+                select.appendChild(option);
+            });
+            select.value = step.sectionId;
+            protectEditorControl(select);
+            select.addEventListener('change', () => {
+                step.sectionId = select.value;
+                markSongEditorDirty();
+            });
+        }
 
-        const removeButton = document.createElement('button');
-        removeButton.type = 'button';
-        removeButton.className = 'btn btn-xs btn-ghost text-error';
-        removeButton.textContent = 'Remove';
-        removeButton.addEventListener('click', () => {
+        const removeButton = getTemplateElement(item, '[data-role="remove"]');
+
+        removeButton?.addEventListener('click', () => {
             currentSongDraft.arrangement.splice(index, 1);
             markSongEditorDirty();
             renderPreviewEditor();
         });
-        item.appendChild(removeButton);
 
         list.appendChild(item);
     });
 
     editorArrangementRoot.appendChild(list);
 
-    const addButton = document.createElement('button');
-    addButton.type = 'button';
-    addButton.className = 'btn btn-sm btn-outline mt-3';
-    addButton.textContent = '+ Add arrangement item';
+    const addButton = cloneTemplate('song-arrangement-add-template');
+
+    if (!addButton) {
+        return;
+    }
+
     addButton.addEventListener('click', () => {
         const firstSection = currentSongDraft.sections[0];
         if (firstSection) {
@@ -858,14 +879,19 @@ function renderCollectionEditor() {
         editorControlsRoot.remove();
     }
 
-    editorControlsRoot = document.createElement('div');
-    editorControlsRoot.className = 'space-y-3 mt-3';
+    editorControlsRoot = cloneTemplate('song-collection-editor-template');
 
-    const collectionRow = document.createElement('div');
-    collectionRow.className = 'space-y-2';
+    if (!editorControlsRoot) {
+        return;
+    }
 
-    const selector = document.createElement('select');
-    selector.className = 'select select-bordered select-sm w-full';
+    const selector = getTemplateElement(editorControlsRoot, '[data-role="selector"]');
+
+    if (!(selector instanceof HTMLSelectElement)) {
+        return;
+    }
+
+    selector.replaceChildren();
     currentSongDraft.collections.forEach((collection, index) => {
         const option = document.createElement('option');
         option.value = String(index);
@@ -884,100 +910,81 @@ function renderCollectionEditor() {
         renderSongHeader();
     });
 
-    collectionRow.appendChild(selector);
-
     const selected = selector.value === 'new' ? null : currentSongDraft.collections[Number.parseInt(selector.value, 10)];
     const collection = selected || null;
 
-    const nameInput = document.createElement('input');
-    nameInput.className = 'input input-bordered input-sm w-full';
-    nameInput.placeholder = 'Collection name';
-    nameInput.value = collection?.name || '';
-    protectEditorControl(nameInput);
-    nameInput.addEventListener('input', () => {
-        if (collection) {
-            collection.name = nameInput.value;
-            markSongEditorDirty();
-            renderSongHeader();
-        } else {
-            const nextCollection = {
-                name: nameInput.value,
-                collectionId: '',
-                reference: '',
-                number: undefined,
-            };
-            currentSongDraft.collections.push(nextCollection);
-            currentCollectionSelection = String(currentSongDraft.collections.length - 1);
-            markSongEditorDirty();
-            renderCollectionEditor();
-            renderSongHeader();
-        }
-    });
+    const nameInput = getTemplateElement(editorControlsRoot, '[data-role="name"]');
+    const idInput = getTemplateElement(editorControlsRoot, '[data-role="id"]');
+    const numberInput = getTemplateElement(editorControlsRoot, '[data-role="number"]');
 
-    const idInput = document.createElement('input');
-    idInput.className = 'input input-bordered input-sm w-full';
-    idInput.placeholder = 'Collection id';
-    idInput.value = collection?.collectionId || '';
-    protectEditorControl(idInput);
-    idInput.addEventListener('input', () => {
-        if (collection) {
-            collection.collectionId = idInput.value;
-            markSongEditorDirty();
-            renderSongHeader();
-        }
-    });
+    if (nameInput instanceof HTMLInputElement) {
+        nameInput.value = collection?.name || '';
+        protectEditorControl(nameInput);
+        nameInput.addEventListener('input', () => {
+            if (collection) {
+                collection.name = nameInput.value;
+                markSongEditorDirty();
+                renderSongHeader();
+            } else {
+                const nextCollection = {
+                    name: nameInput.value,
+                    collectionId: '',
+                    reference: '',
+                    number: undefined,
+                };
+                currentSongDraft.collections.push(nextCollection);
+                currentCollectionSelection = String(currentSongDraft.collections.length - 1);
+                markSongEditorDirty();
+                renderCollectionEditor();
+                renderSongHeader();
+            }
+        });
+    }
 
-    const idHelper = document.createElement('p');
-    idHelper.className = 'text-xs opacity-70';
-    idHelper.textContent = 'Leave id empty to generate from the name.';
+    if (idInput instanceof HTMLInputElement) {
+        idInput.value = collection?.collectionId || '';
+        protectEditorControl(idInput);
+        idInput.addEventListener('input', () => {
+            if (collection) {
+                collection.collectionId = idInput.value;
+                markSongEditorDirty();
+                renderSongHeader();
+            }
+        });
+    }
 
-    const numberInput = document.createElement('input');
-    numberInput.className = 'input input-bordered input-sm w-full';
-    numberInput.placeholder = 'Collection number';
-    numberInput.value = collection?.number == null ? '' : String(collection.number);
-    protectEditorControl(numberInput);
-    numberInput.addEventListener('input', () => {
-        if (collection) {
-            const parsed = Number.parseInt(numberInput.value, 10);
-            collection.number = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-            markSongEditorDirty();
-            renderSongHeader();
-        }
-    });
+    if (numberInput instanceof HTMLInputElement) {
+        numberInput.value = collection?.number == null ? '' : String(collection.number);
+        protectEditorControl(numberInput);
+        numberInput.addEventListener('input', () => {
+            if (collection) {
+                const parsed = Number.parseInt(numberInput.value, 10);
+                collection.number = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+                markSongEditorDirty();
+                renderSongHeader();
+            }
+        });
+    }
 
     if (!collection && currentSongDraft.collections.length === 0) {
         currentCollectionSelection = 'new';
     }
 
-    collectionRow.appendChild(nameInput);
-    collectionRow.appendChild(idInput);
-    collectionRow.appendChild(idHelper);
-    collectionRow.appendChild(numberInput);
+    const saveButton = getTemplateElement(editorControlsRoot, '[data-role="save"]');
+    const cancelButton = getTemplateElement(editorControlsRoot, '[data-role="cancel"]');
 
-    const actions = document.createElement('div');
-    actions.className = 'flex gap-2';
+    if (!(saveButton instanceof HTMLButtonElement) || !(cancelButton instanceof HTMLButtonElement)) {
+        return;
+    }
 
-    const saveButton = document.createElement('button');
-    saveButton.type = 'button';
-    saveButton.className = 'btn btn-sm btn-primary';
-    saveButton.textContent = 'Save';
     saveButton.addEventListener('click', () => {
         saveCurrentSongDraft().catch((error) => console.error('Failed to save song draft', error));
     });
 
-    const cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.className = 'btn btn-sm btn-ghost';
-    cancelButton.textContent = 'Cancel';
     cancelButton.addEventListener('click', () => {
         cancelSongEdit();
     });
 
-    actions.appendChild(saveButton);
-    actions.appendChild(cancelButton);
-
-    editorControlsRoot.appendChild(collectionRow);
-    editorControlsRoot.appendChild(actions);
     editorBox.appendChild(editorControlsRoot);
 }
 
@@ -2185,17 +2192,11 @@ function renderSongPlaceholder() {
 
     main.replaceChildren();
 
-    const placeholder = document.createElement('div');
-    placeholder.className = 'text-center pt-16 text-lg font-bold';
+    const placeholder = cloneTemplate('song-placeholder-template');
 
-    const paragraph = document.createElement('p');
-    const icon = document.createElement('i');
-    icon.className = 'bi bi-arrow-left pr-3';
-    paragraph.appendChild(icon);
-    paragraph.appendChild(document.createTextNode('Select a song'));
-
-    placeholder.appendChild(paragraph);
-    main.appendChild(placeholder);
+    if (placeholder) {
+        main.appendChild(placeholder);
+    }
 
     if (songNameNode) {
         songNameNode.innerHTML = '';
