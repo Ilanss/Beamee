@@ -3360,10 +3360,6 @@ html {
   max-width: 28rem;
 }
 
-.max-w-xs {
-  max-width: 20rem;
-}
-
 .flex-1 {
   flex: 1 1 0%;
 }
@@ -3593,10 +3589,6 @@ html {
   padding: 0.5rem;
 }
 
-.p-3 {
-  padding: 0.75rem;
-}
-
 .px-2 {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
@@ -3786,7 +3778,7 @@ body {
 
 .wrapper {
   display: grid;
-  grid-template-columns: 1fr 2fr 1.5fr;
+  grid-template-columns: clamp(200px, 20%, 350px) 1fr clamp(200px, 20%, 500px);
   grid-template-rows: 1fr max-content;
   gap: 0px 0px;
   grid-auto-flow: row;
@@ -3820,6 +3812,7 @@ body {
 
 #verse-display {
   overflow-y: scroll;
+  max-width: 100%;
 }
 
 #preview-box {
