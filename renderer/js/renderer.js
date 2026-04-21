@@ -308,25 +308,7 @@ function getSelectedCollectionDraft(draft) {
 }
 
 function ensureCollectionDraft(draft) {
-    if (!draft.collections.length) {
-        const nextCollection = {
-            name: '',
-            collectionId: '',
-            reference: '',
-            number: undefined,
-        };
-
-        draft.collections.push(nextCollection);
-        currentCollectionSelection = '0';
-        return nextCollection;
-    }
-
-    const selected = getSelectedCollectionDraft(draft);
-    if (selected) {
-        return selected;
-    }
-
-    return draft.collections[0];
+    return getSelectedCollectionDraft(draft);
 }
 
 function bindSelectAllShortcut(input) {
@@ -617,7 +599,7 @@ function renderSongHeader() {
 
     if (currentSongDraft && isSongEditing) {
         const draft = currentSongDraft;
-        const collection = ensureCollectionDraft(draft);
+        const collection = getSelectedCollectionDraft(draft);
 
         songNameNode.replaceChildren();
         const titleInput = document.createElement('input');
@@ -632,6 +614,26 @@ function renderSongHeader() {
         songNameNode.appendChild(titleInput);
 
         songNumberNode.replaceChildren();
+        if (!collection) {
+            const emptyState = document.createElement('span');
+            emptyState.className = 'mr-2 opacity-70';
+            emptyState.textContent = 'No collection';
+
+            const addButton = document.createElement('button');
+            addButton.type = 'button';
+            addButton.className = 'btn btn-xs btn-outline';
+            addButton.textContent = 'Add collection';
+            addButton.addEventListener('click', () => {
+                currentCollectionSelection = 'new';
+                renderSongHeader();
+                renderCollectionEditor();
+            });
+
+            songNumberNode.appendChild(emptyState);
+            songNumberNode.appendChild(addButton);
+            return;
+        }
+
         const collectionSpan = document.createElement('span');
         collectionSpan.className = 'mr-2';
         collectionSpan.textContent = `${collection.collectionId || 'collection'} #`;
@@ -916,6 +918,7 @@ function renderCollectionEditor() {
     const nameInput = getTemplateElement(editorControlsRoot, '[data-role="name"]');
     const idInput = getTemplateElement(editorControlsRoot, '[data-role="id"]');
     const numberInput = getTemplateElement(editorControlsRoot, '[data-role="number"]');
+    const removeButton = getTemplateElement(editorControlsRoot, '[data-role="remove-collection"]');
 
     if (nameInput instanceof HTMLInputElement) {
         nameInput.value = collection?.name || '';
@@ -938,6 +941,28 @@ function renderCollectionEditor() {
                 renderCollectionEditor();
                 renderSongHeader();
             }
+        });
+    }
+
+    if (removeButton instanceof HTMLButtonElement) {
+        removeButton.hidden = !collection;
+        removeButton.addEventListener('click', () => {
+            if (!collection) {
+                return;
+            }
+
+            const removedIndex = currentSongDraft.collections.indexOf(collection);
+            if (removedIndex === -1) {
+                return;
+            }
+
+            currentSongDraft.collections.splice(removedIndex, 1);
+            currentCollectionSelection = currentSongDraft.collections.length
+                ? String(Math.min(removedIndex, currentSongDraft.collections.length - 1))
+                : 'new';
+            markSongEditorDirty();
+            renderCollectionEditor();
+            renderSongHeader();
         });
     }
 
@@ -1003,7 +1028,7 @@ function beginSongEdit(draft, isNew = false) {
     currentSongDraft = ensureDraftShape(draft);
     currentSongDraftIsNew = isNew;
     currentSongDraftSourcePath = isNew ? null : currentSongPath;
-    currentCollectionSelection = '0';
+    currentCollectionSelection = currentSongDraft.collections.length ? '0' : 'new';
     resetSongEditorDirty();
 
     setEditMode(true);
@@ -1012,7 +1037,7 @@ function beginSongEdit(draft, isNew = false) {
 }
 
 function openSongEditorForCurrentSong() {
-    beginSongEdit(currentSongData ? cloneSong(currentSongData) : createBlankSongDraft(), Boolean(currentSongPath));
+    beginSongEdit(currentSongData ? cloneSong(currentSongData) : createBlankSongDraft(), false);
 }
 
 function openNewSongDraft() {

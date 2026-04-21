@@ -234,7 +234,7 @@ const saveSongDraft = async (window, song, targetPath, isNew) => {
         return { ok: false, error: errors.join('; ') };
     }
 
-    const filePath = targetPath && !isNew
+    const filePath = targetPath
         ? targetPath
         : resolveUniqueSongPath(appDataPaths.library, normalizedSong);
 
