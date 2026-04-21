@@ -101,7 +101,7 @@ const buildLibraryState = (libraryRoot) => {
         });
         songPathById.set(rawSong.id, filePath);
 
-        if (!rawSong.collections.length) {
+        if (!Array.isArray(rawSong.collections) || !rawSong.collections.length) {
             rootSongs.push({
                 name: `${rawSong.name}.json`,
                 id: rawSong.id,

@@ -30,8 +30,8 @@ const isBoolean = (value) => typeof value === 'boolean';
 const normalizePreferences = (preferences = {}) => {
     const source = isObject(preferences) ? preferences : {};
 
+    // Only known keys are included — unknown keys from future or corrupted files are dropped.
     return {
-        ...source,
         fontFamily: typeof source.fontFamily === 'string' && source.fontFamily.trim()
             ? source.fontFamily.trim()
             : DEFAULT_PREFERENCES.fontFamily,

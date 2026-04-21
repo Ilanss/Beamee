@@ -67,6 +67,9 @@ const normalizeSections = (sections) => {
             }
 
             const raw = section;
+            // Note: if raw.id is absent, the ID is derived from title/type on every normalization call.
+            // This is intentional but means arrangement references may shift if a song is re-normalized
+            // without stable IDs. Callers should preserve existing IDs when editing songs.
             const baseId = normalizeId(raw.id || raw.title || raw.type || `section-${index + 1}`, `section-${index + 1}`);
             let id = baseId;
             let suffix = 2;
@@ -316,8 +319,6 @@ const validateSong = (song) => {
 };
 
 module.exports = {
-    SCHEMA_VERSION,
-    SECTION_TYPES,
     normalizeId,
     normalizeSong,
     validateSong,

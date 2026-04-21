@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "daisyui";
+@source "../../renderer/**/*.html";
+@source "../../renderer/**/*.js";
 
 body {
   height: 100vh;
@@ -11,22 +13,22 @@ body {
 .wrapper {  display: grid;
     grid-template-columns: clamp(200px, 20%, 350px) 1fr clamp(200px, 20%, 500px);
     grid-template-rows: 1fr max-content;
-    gap: 0px 0px; 
+    gap: 0px 0px;
     grid-auto-flow: row;
     grid-template-areas:
       "sidebar verse-display preview-box"
       "sidebar controls controls";
-      width: 100%;
+    width: 100%;
   }
-  
+
   .controls { grid-area: controls; }
-  
+
   .sidebar { grid-area: sidebar; }
-  
+
 .preview-box { grid-area: preview-box; }
-  
+
   #verse-display { grid-area: verse-display; }
-    
+
 /* MAIN WINDOW STYLING */
 
 #main {
@@ -54,21 +56,6 @@ body {
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-}
-
-/* .tooltip {
-  transition: opacity 0.3s;
-  opacity: 0;
-  visibility: hidden;
-} */
-
-.tooltip-delay {
-  transition-delay: 5s; /* Adjust the delay as needed */
-}
-
-.group:hover .tooltip {
-  opacity: 1;
-  visibility: visible;
 }
 
 /* PROJECTOR STYLING */

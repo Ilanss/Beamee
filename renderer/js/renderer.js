@@ -307,10 +307,6 @@ function getSelectedCollectionDraft(draft) {
     return null;
 }
 
-function ensureCollectionDraft(draft) {
-    return getSelectedCollectionDraft(draft);
-}
-
 function bindSelectAllShortcut(input) {
     if (!input) {
         return;
@@ -563,6 +559,8 @@ function renderSongView(songData) {
     const verses = expandSongForProjection(songData, currentUseArrangement);
 
     currentLyrics = verses;
+    // currentVerseIndex is intentionally reset to undefined on every song load.
+    // The projector only updates when the user explicitly clicks a verse.
     currentVerseIndex = undefined;
 
     main.replaceChildren();
@@ -606,7 +604,7 @@ function renderSongHeader() {
         titleInput.type = 'text';
         titleInput.value = draft.name || '';
         titleInput.placeholder = 'Song title';
-        titleInput.className = 'input input-bordered input-sm w-full max-w-md';
+        titleInput.className = 'input input-sm w-full max-w-md';
         titleInput.addEventListener('input', () => {
             draft.name = titleInput.value;
             markSongEditorDirty();
@@ -1631,13 +1629,11 @@ function createFileList(files, container) {
                 </svg>
             `));
 
-            //(songData.collections[0] != undefined) ? a.appendChild(document.createTextNode(songData.name + songData.collections[0].number)) : a.appendChild(document.createTextNode(songData.name));
-
-            if (songData.collections[0] != undefined) {
-                a.appendChild(Object.assign(document.createElement("span"), {
-                    textContent: "#" + songData.collections[0].number,
-                    classList: "text-gray-500"
-                }));
+            if (songData.collections[0] !== undefined) {
+                const collectionSpan = document.createElement('span');
+                collectionSpan.textContent = '#' + songData.collections[0].number;
+                collectionSpan.className = 'text-gray-500';
+                a.appendChild(collectionSpan);
             }
 
             a.appendChild(document.createTextNode(songData.name));
@@ -1978,7 +1974,7 @@ function beginInlineEdit(labelNode, initialValue, options = {}) {
 }
 
 function bindSongClickDelegation() {
-    if (libraryClickDelegated || favoritesClickDelegated) {
+    if (libraryClickDelegated && favoritesClickDelegated) {
         return;
     }
 

@@ -31,9 +31,7 @@ const getAppDataPaths = () => {
 };
 
 const ensureDirSync = (dir) => {
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
+    fs.mkdirSync(dir, { recursive: true });
 };
 
 const bootstrapAppData = () => {
@@ -55,10 +53,6 @@ const bootstrapAppData = () => {
 
 const readJsonFile = (filePath, fallback) => {
     try {
-        if (!fs.existsSync(filePath)) {
-            return fallback;
-        }
-
         return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     } catch (err) {
         console.error(`Error reading JSON file: ${filePath}`, err);
@@ -832,12 +826,12 @@ const handleExportLibraryZip = async (window) => {
 
 const createMainWindow = () => {
     mainWindow = new BrowserWindow({
-        name: "Beamee",
         width: isDev ? 1600 : 800,
         height: 600,
         webPreferences: {
-            nodeIntegration: true,
+            nodeIntegration: false,
             contextIsolation: true,
+            sandbox: false,
             preload: path.join(__dirname, 'preload.js')
         }
     })
@@ -876,13 +870,13 @@ const createProjectorWindow = () => {
     }
 
     const windowOptions = {
-        name: "Beamee Projection",
         fullscreen: true,
         width: isDev ? 1200 : 800,
         height: 600,
         webPreferences: {
-            nodeIntegration: true,
+            nodeIntegration: false,
             contextIsolation: true,
+            sandbox: false,
             preload: path.join(__dirname, 'preload.js')
         }
     };
@@ -904,25 +898,25 @@ const createProjectorWindow = () => {
 
     projectorWindow.on('close', () => {
         isProjectionOn = false;
-        mainWindow.webContents.send('projection:status', isProjectionOn);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('projection:status', isProjectionOn);
+        }
         projectorWindow = null;
-    })
+    });
 
     projectorWindow.webContents.on('did-finish-load', () => {
-        mainWindow.webContents.send('projection:status', isProjectionOn);
-        setTimeout(
-            () => {
-                mainWindow.focus();
-            }, 500
-        )
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('projection:status', isProjectionOn);
+            mainWindow.focus();
+        }
     });
 }
 
-function loadPreferences() {
-  return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
-}
+const loadPreferences = () => {
+    return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
+};
 
-function savePreferences(preferences) {
+const savePreferences = (preferences) => {
     const currentPreferences = loadPreferences();
     const nextPreferences = mergePreferences(currentPreferences, preferences);
 
@@ -933,13 +927,13 @@ function savePreferences(preferences) {
     }
 
     return nextPreferences;
-}
+};
 
-function restoreDefaultPreferences() {
+const restoreDefaultPreferences = () => {
     return savePreferences(DEFAULT_PREFERENCES);
-}
+};
 
-function createApplicationMenuTemplate(verseCount = 0) {
+const createApplicationMenuTemplate = (verseCount = 0) => {
     const count = Number.isFinite(verseCount) ? Math.min(verseCount, 9) : 0;
     const verseItems = Array.from({ length: count }, (_, index) => {
         const verseNumber = index + 1;
@@ -957,7 +951,6 @@ function createApplicationMenuTemplate(verseCount = 0) {
         {
           label: 'File',
           submenu: [
-            { type: 'separator' },
             ...(isMac ? [{
               label: 'Import Songs...',
               click: () => {
@@ -1100,28 +1093,28 @@ function createApplicationMenuTemplate(verseCount = 0) {
     ];
 }
 
-function setApplicationMenuForVerseCount(verseCount = 0) {
+const setApplicationMenuForVerseCount = (verseCount = 0) => {
     Menu.setApplicationMenu(Menu.buildFromTemplate(createApplicationMenuTemplate(verseCount)));
-}
+};
 
-function registerShortcuts(verseCount) {
+const registerShortcuts = (verseCount) => {
     lastVerseCount = verseCount;
     setApplicationMenuForVerseCount(verseCount);
-}
+};
 
-function unregisterShortcuts(verseCount) {
+const unregisterShortcuts = (verseCount) => {
     lastVerseCount = verseCount;
     setApplicationMenuForVerseCount(0);
-}
+};
 
-ipcMain.on('projection:toggle', (e) => {
+ipcMain.on('projection:toggle', () => {
     if (!isProjectionOn) {
+        // Status is sent to all windows by the did-finish-load handler once the projector is ready.
         createProjectorWindow();
-        e.reply("projection:status", isProjectionOn);
     } else {
+        // Status is sent to all windows by the close handler once the projector closes.
         projectorWindow.close();
     }
-    
 })
 
 ipcMain.on('display-lyrics', (event, lyrics) => {

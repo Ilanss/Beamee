@@ -53,7 +53,7 @@
     </div>
     <ul class="list-none p-0">
       <li class="text-center pt-16 text-lg font-bold">
-        <p><i class="bi bi-arrow-left pr-3"></i>Select a song</p>
+        <p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 inline-block mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg>Select a song</p>
       </li>
     </ul>
   </div>
@@ -144,7 +144,7 @@
 
 <template id="song-placeholder-template">
   <div class="text-center pt-16 text-lg font-bold">
-    <p><i class="bi bi-arrow-left pr-3"></i><span data-role="label">Select a song</span></p>
+    <p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 inline-block mr-3"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" /></svg><span data-role="label">Select a song</span></p>
   </div>
 </template>
 
@@ -158,8 +158,8 @@
             clip-rule="evenodd" />
         </svg>
       </span>
-      <select class="select select-bordered select-xs" data-role="type"></select>
-      <input type="text" placeholder="Section title" class="input input-bordered input-xs w-full" data-role="title">
+      <select class="select select-xs" data-role="type"></select>
+      <input type="text" placeholder="Section title" class="input input-xs w-full" data-role="title">
       <button type="button" class="btn btn-xs btn-ghost ml-auto text-error round" data-role="remove">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
           class="size-4">
@@ -169,7 +169,7 @@
 
       </button>
     </div>
-    <textarea class="textarea textarea-bordered min-h-32 w-full" data-role="text"></textarea>
+    <textarea class="textarea min-h-32 w-full" data-role="text"></textarea>
   </li>
 </template>
 
@@ -182,7 +182,7 @@
           clip-rule="evenodd" />
       </svg>
     </span>
-    <select class="select select-bordered select-xs flex-1" data-role="section"></select>
+    <select class="select select-xs flex-1" data-role="section"></select>
     <button type="button" class="btn btn-xs btn-ghost text-error" data-role="remove">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
         class="size-4">
@@ -201,11 +201,11 @@
 <template id="song-collection-editor-template">
   <div class="space-y-3 mt-3">
     <div class="space-y-2" data-role="collection-row">
-      <select class="select select-bordered select-sm w-full" data-role="selector"></select>
-      <input type="text" placeholder="Collection name" class="input input-bordered input-sm w-full" data-role="name">
-      <input type="text" placeholder="Collection id" class="input input-bordered input-sm w-full" data-role="id">
+      <select class="select select-sm w-full" data-role="selector"></select>
+      <input type="text" placeholder="Collection name" class="input input-sm w-full" data-role="name">
+      <input type="text" placeholder="Collection id" class="input input-sm w-full" data-role="id">
       <p class="text-xs opacity-70" data-role="helper">Leave id empty to generate from the name.</p>
-      <input type="text" placeholder="Collection number" class="input input-bordered input-sm w-full"
+      <input type="text" placeholder="Collection number" class="input input-sm w-full"
         data-role="number">
       <button type="button" class="btn btn-xs btn-ghost text-error self-start" data-role="remove-collection">
         Remove collection

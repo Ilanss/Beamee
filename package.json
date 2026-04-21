@@ -6,17 +6,16 @@
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
-    "watch": "npx electronmon .",
+    "watch": "electronmon .",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "watch-tailwind": "npx @tailwindcss/cli -i ./renderer/css/style.css -o ./renderer/css/output.css --watch",
-    "build-tailwind": "npx @tailwindcss/cli -i ./renderer/css/style.css -o ./renderer/css/output.css"
+    "watch-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css --watch",
+    "build-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css"
   },
   "author": "Ilans",
   "license": "ISC",
   "dependencies": {
     "archiver": "^7.0.1",
-    "electron-squirrel-startup": "^1.0.1",
     "sortablejs": "^1.15.2"
   },
   "devDependencies": {
@@ -28,9 +27,11 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
     "@electron-forge/plugin-fuses": "^7.4.0",
     "@electron/fuses": "^1.8.0",
+    "@tailwindcss/cli": "^4.2.3",
     "@tailwindcss/typography": "^0.5.13",
-    "daisyui": "^4.12.10",
+    "daisyui": "^5.5.19",
     "electron": "^31.2.1",
-    "tailwindcss": "^3.4.6"
+    "electronmon": "^2.0.4",
+    "tailwindcss": "^4.2.3"
   }
 }
