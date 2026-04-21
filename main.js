@@ -70,6 +70,46 @@ const saveJsonFile = (filePath, data) => {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
 };
 
+const buildSongFileStem = (song) => {
+    const parts = [];
+    const collection = Array.isArray(song?.collections) ? song.collections[0] : null;
+    const collectionName = typeof collection?.name === 'string' && collection.name.trim()
+        ? collection.name.trim()
+        : typeof collection?.collectionId === 'string' && collection.collectionId.trim()
+            ? collection.collectionId.trim()
+            : '';
+
+    if (collectionName) {
+        parts.push(songSchema.normalizeId(collectionName, 'collection'));
+    }
+
+    if (Number.isInteger(collection?.number) && collection.number > 0) {
+        parts.push(String(collection.number));
+    }
+
+    const songName = typeof song?.name === 'string' && song.name.trim()
+        ? song.name.trim()
+        : typeof song?.id === 'string' && song.id.trim()
+            ? song.id.trim()
+            : 'song';
+
+    parts.push(songSchema.normalizeId(songName, 'song'));
+
+    return parts.filter(Boolean).join('-') || 'song';
+};
+
+const resolveUniqueSongPath = (directoryPath, song) => {
+    const stem = buildSongFileStem(song);
+    let candidate = path.join(directoryPath, `${stem}.json`);
+    let suffix = 2;
+
+    while (fs.existsSync(candidate)) {
+        candidate = path.join(directoryPath, `${stem}-${suffix++}.json`);
+    }
+
+    return candidate;
+};
+
 const refreshLibraryState = () => {
     libraryState = null;
     ensureLibraryDataLoaded();
@@ -180,6 +220,40 @@ const exportSongJson = async (window, songPath) => {
     }
 
     fileController.writeFile(filePath, song);
+    return { ok: true, filePath };
+};
+
+const saveSongDraft = async (window, song, targetPath, isNew) => {
+    const normalizedSong = songSchema.normalizeSong(song, {
+        sourcePath: targetPath || undefined,
+        fallbackId: song?.id || song?.name || 'song',
+    });
+    const errors = songSchema.validateSong(normalizedSong);
+
+    if (errors.length > 0) {
+        return { ok: false, error: errors.join('; ') };
+    }
+
+    const filePath = targetPath
+        ? targetPath
+        : resolveUniqueSongPath(appDataPaths.library, normalizedSong);
+
+    ensureDirSync(path.dirname(filePath));
+
+    if (isNew && normalizedSong.id === 'song' && typeof filePath === 'string') {
+        normalizedSong.id = songSchema.normalizeId(path.basename(filePath, path.extname(filePath)), 'song');
+    }
+
+    const finalErrors = songSchema.validateSong(normalizedSong);
+
+    if (finalErrors.length > 0) {
+        return { ok: false, error: finalErrors.join('; ') };
+    }
+
+    saveJsonFile(filePath, normalizedSong);
+    refreshLibraryState();
+    notifyLibraryChanged();
+
     return { ok: true, filePath };
 };
 
@@ -910,6 +984,13 @@ function createApplicationMenuTemplate(verseCount = 0) {
               },
             ]),
             {
+              label: 'New Song...',
+              click: () => {
+                mainWindow.webContents.send('song:new');
+              },
+              accelerator: 'CmdOrCtrl+N',
+            },
+            {
               label: 'Export Current Song JSON',
               click: () => {
                 handleExportCurrentSong(mainWindow).catch((error) => {
@@ -944,6 +1025,14 @@ function createApplicationMenuTemplate(verseCount = 0) {
         {
           label: 'Edit',
           submenu: [
+            {
+              label: 'Edit song...',
+              accelerator: 'CmdOrCtrl+E',
+              click: () => {
+                mainWindow.webContents.send('song:edit');
+              },
+            },
+            { type: 'separator' },
             { role: 'undo' },
             { role: 'redo' },
             { type: 'separator' },
@@ -1117,6 +1206,30 @@ ipcMain.handle('library:state', () => {
         library: libraryState?.tree || [],
         favorites: loadFavorites(),
     };
+});
+
+ipcMain.handle('song:save', async (event, payload = {}) => {
+    try {
+        return await saveSongDraft(BrowserWindow.fromWebContents(event.sender) || mainWindow, payload.song, payload.targetPath, Boolean(payload.isNew));
+    } catch (error) {
+        console.error('Error saving song draft', error);
+        return { ok: false, error: error?.message || 'Unable to save song.' };
+    }
+});
+
+ipcMain.handle('editor:prompt-song-switch', async () => {
+    const result = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['Discard', 'Save', 'Cancel'],
+        defaultId: 1,
+        cancelId: 2,
+        title: 'Unsaved changes',
+        message: 'This song has unsaved changes.',
+        detail: 'Do you want to discard them, save them, or stay in the editor?',
+        noLink: true,
+    });
+
+    return result.response;
 });
 
 ipcMain.handle('projection:is-on', () => {
