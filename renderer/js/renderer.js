@@ -89,13 +89,13 @@ let currentPreferences;
 let mountContext = null;
 
 const librarySearchIconSvg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="#6B7280">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="currentColor">
         <path d="M13 3C7.489 3 3 7.489 3 13s4.489 10 10 10a9.95 9.95 0 0 0 6.322-2.264l5.971 5.971a1 1 0 1 0 1.414-1.414l-5.97-5.97A9.95 9.95 0 0 0 23 13c0-5.511-4.489-10-10-10m0 2c4.43 0 8 3.57 8 8s-3.57 8-8 8-8-3.57-8-8 3.57-8 8-8" />
     </svg>
 `;
 
 const librarySearchClearSvg = `
-<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="#6B7280">
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
   <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25Zm-1.72 6.97a.75.75 0 1 0-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 1 0 1.06 1.06L12 13.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L13.06 12l1.72-1.72a.75.75 0 1 0-1.06-1.06L12 10.94l-1.72-1.72Z" clip-rule="evenodd" />
 </svg>
 `;
@@ -577,7 +577,7 @@ function renderSongView(songData) {
         li.appendChild(label);
         li.appendChild(text);
         li.setAttribute('id', `verse-${i}`);
-        li.classList.add('bg-gray-100', 'rounded-md', 'p-2', 'px-4', 'pb-3', 'hover:bg-gray-200', 'active:bg-gray-300', 'dark:bg-slate-800', 'hover:dark:bg-slate-700');
+        li.classList.add('bg-base-200', 'p-2', 'px-4', 'pb-3', 'hover:bg-base-300', 'active:bg-base-300', 'rounded-field');
 
         li.addEventListener('click', () => {
             currentVerseIndex = i;
@@ -1632,7 +1632,7 @@ function createFileList(files, container) {
             if (songData.collections[0] !== undefined) {
                 const collectionSpan = document.createElement('span');
                 collectionSpan.textContent = '#' + songData.collections[0].number;
-                collectionSpan.className = 'text-gray-500';
+                collectionSpan.className = 'opacity-60';
                 a.appendChild(collectionSpan);
             }
 
@@ -1992,11 +1992,11 @@ function bindSongClickDelegation() {
         }
 
         handleSongSwitch(async () => {
-            document.querySelectorAll('a.active').forEach((anchor) => {
-                anchor.classList.remove('active');
+            document.querySelectorAll('a.menu-active').forEach((anchor) => {
+                anchor.classList.remove('menu-active');
             });
 
-            item.querySelector('a')?.classList.add('active');
+            item.querySelector('a')?.classList.add('menu-active');
             loadSong(nextSongPath);
         }).catch((error) => {
             console.warn('Failed to switch songs', error);

@@ -1,46 +1,46 @@
-<section class="h-full overflow-auto bg-slate-50 px-4 py-5 text-slate-900 sm:px-6">
+<section class="h-full overflow-auto px-4 py-5  sm:px-6">
   <div class="mb-4 flex items-center justify-between gap-3">
     <div>
-      <p class="text-sm uppercase tracking-wide text-slate-500">App</p>
+      <p class="text-sm uppercase tracking-wide">App</p>
       <h2 class="text-xl font-semibold">Preferences</h2>
     </div>
-    <button type="button" data-route="library" class="rounded-md bg-slate-200 px-4 py-2 font-medium text-slate-900">Back</button>
+    <button type="button" data-route="library" class="btn">Back</button>
   </div>
 
   <form id="preferences-form" class="grid max-w-2xl gap-3">
     <div class="grid gap-1.5">
-      <label for="font-family" class="font-medium">Font Family</label>
-      <select id="font-family" name="font-family" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2"></select>
+      <label for="font-family" class="">Font Family</label>
+      <select id="font-family" name="font-family" class="select w-full"></select>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="grid gap-1.5">
-        <label for="font-size" class="font-medium">Font Size</label>
-        <input type="number" id="font-size" name="font-size" min="10" max="200" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+        <label for="font-size" class="">Font Size</label>
+        <input type="number" id="font-size" name="font-size" min="10" max="200" class="input w-full">
       </div>
       <div class="grid gap-1.5">
-        <label for="line-height" class="font-medium">Line Height</label>
-        <input type="number" id="line-height" name="line-height" min="0.5" max="3" step="0.1" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+        <label for="line-height" class="">Line Height</label>
+        <input type="number" id="line-height" name="line-height" min="0.5" max="3" step="0.1" class="input w-full">
       </div>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="grid gap-1.5">
-        <label for="text-color" class="font-medium">Text Color</label>
+        <label for="text-color" class="">Text Color</label>
         <div class="relative">
-          <button type="button" data-color-trigger="text-color" class="flex h-11 w-full items-center gap-3 rounded-md border border-slate-300 bg-white px-3 text-left">
-            <span data-color-swatch="text-color" class="h-6 w-6 shrink-0 rounded border border-slate-300"></span>
-            <span data-color-value="text-color" class="font-mono text-sm text-slate-600"></span>
+          <button type="button" data-color-trigger="text-color" class="input flex h-11 w-full items-center gap-3 text-left">
+            <span data-color-swatch="text-color" class="h-6 w-6 shrink-0 rounded border "></span>
+            <span data-color-value="text-color" class="font-mono text-sm "></span>
           </button>
           <input type="color" id="text-color" name="text-color" class="sr-only">
         </div>
       </div>
       <div class="grid gap-1.5">
-        <label for="background-color" class="font-medium">Background Color</label>
+        <label for="background-color" class="">Background Color</label>
         <div class="relative">
-          <button type="button" data-color-trigger="background-color" class="flex h-11 w-full items-center gap-3 rounded-md border border-slate-300 bg-white px-3 text-left">
-            <span data-color-swatch="background-color" class="h-6 w-6 shrink-0 rounded border border-slate-300"></span>
-            <span data-color-value="background-color" class="font-mono text-sm text-slate-600"></span>
+          <button type="button" data-color-trigger="background-color" class="input flex h-11 w-full items-center gap-3 text-left">
+            <span data-color-swatch="background-color" class="h-6 w-6 shrink-0 rounded border "></span>
+            <span data-color-value="background-color" class="font-mono text-sm "></span>
           </button>
           <input type="color" id="background-color" name="background-color" class="sr-only">
         </div>
@@ -49,30 +49,30 @@
 
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="grid gap-1.5">
-        <label for="padding-top" class="font-medium">Padding Top</label>
-        <input type="number" id="padding-top" name="padding-top" min="0" max="200" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+        <label for="padding-top" class="">Padding Top</label>
+        <input type="number" id="padding-top" name="padding-top" min="0" max="200" class="input w-full">
       </div>
       <div class="grid gap-1.5">
-        <label for="padding-bottom" class="font-medium">Padding Bottom</label>
-        <input type="number" id="padding-bottom" name="padding-bottom" min="0" max="200" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+        <label for="padding-bottom" class="">Padding Bottom</label>
+        <input type="number" id="padding-bottom" name="padding-bottom" min="0" max="200" class="input w-full">
       </div>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="grid gap-1.5">
-        <label for="padding-left" class="font-medium">Padding Left</label>
-        <input type="number" id="padding-left" name="padding-left" min="0" max="200" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+        <label for="padding-left" class="">Padding Left</label>
+        <input type="number" id="padding-left" name="padding-left" min="0" max="200" class="input w-full">
       </div>
       <div class="grid gap-1.5">
-        <label for="padding-right" class="font-medium">Padding Right</label>
-        <input type="number" id="padding-right" name="padding-right" min="0" max="200" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2">
+        <label for="padding-right" class="">Padding Right</label>
+        <input type="number" id="padding-right" name="padding-right" min="0" max="200" class="input w-full">
       </div>
     </div>
 
     <div class="flex flex-wrap gap-2 pt-1">
-      <button type="button" id="save-preferences" class="rounded-md bg-blue-600 px-4 py-2 font-medium text-white">Save Preferences</button>
-      <button type="reset" class="rounded-md bg-slate-200 px-4 py-2 font-medium text-slate-900">Reset</button>
-      <button type="button" id="restore-defaults" class="rounded-md bg-slate-900 px-4 py-2 font-medium text-white">Restore Defaults</button>
+      <button type="button" id="save-preferences" class="btn btn-primary">Save Preferences</button>
+      <button type="reset" class="btn">Reset</button>
+      <button type="button" id="restore-defaults" class="btn">Restore Defaults</button>
     </div>
   </form>
   <p id="preferences-status" class="mt-3 min-h-5" aria-live="polite"></p>

@@ -30,7 +30,7 @@
     "@tailwindcss/cli": "^4.2.3",
     "@tailwindcss/typography": "^0.5.13",
     "daisyui": "^5.5.19",
-    "electron": "^31.2.1",
+    "electron": "^35.7.5",
     "electronmon": "^2.0.4",
     "tailwindcss": "^4.2.3"
   }

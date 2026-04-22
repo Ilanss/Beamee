@@ -78,7 +78,8 @@ const showStatus = (message, isError = false) => {
   }
 
   statusElement.textContent = message;
-  statusElement.style.color = isError ? '#b91c1c' : '#166534';
+  statusElement.classList.toggle('text-error', isError);
+  statusElement.classList.toggle('text-success', !isError);
 };
 
 const getField = (id) => rootElement?.querySelector(`#${id}`);
