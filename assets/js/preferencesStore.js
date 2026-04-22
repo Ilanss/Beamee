@@ -9,6 +9,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     paddingLeft: 10,
     paddingRight: 10,
     useArrangement: true,
+    theme: 'light',
 });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -48,6 +49,9 @@ const normalizePreferences = (preferences = {}) => {
         paddingLeft: clampNumber(source.paddingLeft, DEFAULT_PREFERENCES.paddingLeft, 0, 200),
         paddingRight: clampNumber(source.paddingRight, DEFAULT_PREFERENCES.paddingRight, 0, 200),
         useArrangement: isBoolean(source.useArrangement) ? source.useArrangement : DEFAULT_PREFERENCES.useArrangement,
+        theme: typeof source.theme === 'string' && source.theme.trim()
+            ? source.theme.trim()
+            : DEFAULT_PREFERENCES.theme,
     };
 };
 

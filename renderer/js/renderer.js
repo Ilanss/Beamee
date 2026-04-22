@@ -356,11 +356,11 @@ function updateEditSongButtonLabel() {
     }
 
     editSongButton.innerHTML = currentSongPath ?
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="18" height="24">
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
           <path
             d="M21.731 2.269a2.625 2.625 0 0 0-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 0 0 0-3.712ZM19.513 8.199l-3.712-3.712-12.15 12.15a5.25 5.25 0 0 0-1.32 2.214l-.8 2.685a.75.75 0 0 0 .933.933l2.685-.8a5.25 5.25 0 0 0 2.214-1.32L19.513 8.2Z" />
         </svg>` :
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
           <path fill-rule="evenodd"
             d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z"
             clip-rule="evenodd" />
@@ -549,6 +549,9 @@ function applyPreviewPreferences(preferences) {
     previewContent.style.paddingLeft = `${preferences.paddingLeft}px`;
     previewContent.style.paddingRight = `${preferences.paddingRight}px`;
 
+    if (preferences.theme) {
+        document.documentElement.setAttribute('data-theme', preferences.theme);
+    }
 }
 
 function renderSongView(songData) {

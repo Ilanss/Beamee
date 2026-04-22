@@ -24,6 +24,7 @@ const fallbackFonts = [
 ];
 
 let currentPreferences = null;
+let selectedTheme = null;
 let availableFonts = fallbackFonts;
 const cleanupTasks = [];
 let mountContext = null;
@@ -92,6 +93,12 @@ const showStatus = (message, isError = false) => {
   statusElement.textContent = message;
   statusElement.classList.toggle('text-error', isError);
   statusElement.classList.toggle('text-success', !isError);
+};
+
+const applyThemeToDocument = (theme) => {
+  if (typeof theme === 'string' && theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
 };
 
 const getField = (id) => rootElement?.querySelector(`#${id}`);
@@ -233,6 +240,16 @@ const applyPreferencesToForm = (preferences) => {
   setInputValue('padding-left', preferences.paddingLeft);
   setInputValue('padding-right', preferences.paddingRight);
 
+  const themeCards = rootElement?.querySelectorAll('[data-set-theme]') ?? [];
+  const availableThemes = new Set(Array.from(themeCards).map((c) => c.dataset.setTheme));
+  const theme = availableThemes.has(preferences.theme) ? preferences.theme : 'light';
+
+  selectedTheme = theme;
+  themeCards.forEach((card) => {
+    card.classList.toggle('outline-base-content!', card.dataset.setTheme === theme);
+  });
+  applyThemeToDocument(theme);
+
   return true;
 };
 
@@ -246,6 +263,7 @@ const readPreferencesFromForm = () => ({
   paddingBottom: readNumericValue('padding-bottom', currentPreferences?.paddingBottom, Number.parseInt),
   paddingLeft: readNumericValue('padding-left', currentPreferences?.paddingLeft, Number.parseInt),
   paddingRight: readNumericValue('padding-right', currentPreferences?.paddingRight, Number.parseInt),
+  theme: selectedTheme || currentPreferences?.theme || 'light',
 });
 
 const savePreferencesFromForm = async () => {
@@ -299,6 +317,27 @@ export async function mount(root, context = {}) {
   });
 
   colorFieldIds.forEach(bindColorField);
+
+  on(rootElement.querySelector('#settings-appearence'), 'click', (e) => {
+    const card = e.target.closest('[data-set-theme]');
+
+    if (!card) {
+      return;
+    }
+
+    const theme = card.dataset.setTheme;
+    if (!theme) {
+      return;
+    }
+
+    selectedTheme = theme;
+
+    rootElement.querySelectorAll('[data-set-theme]').forEach((c) => {
+      c.classList.toggle('outline-base-content!', c === card);
+    });
+
+    applyThemeToDocument(theme);
+  });
 
   Array.from(rootElement.querySelectorAll('input, textarea')).forEach((input) => {
     if (!(input instanceof HTMLInputElement)) {
@@ -385,4 +424,5 @@ export async function unmount() {
   saveButton = null;
   statusElement = null;
   mountContext = null;
+  selectedTheme = null;
 }

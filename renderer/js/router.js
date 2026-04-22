@@ -177,6 +177,16 @@ window.addEventListener('hashchange', () => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
+  // Apply the saved theme before the first view renders to avoid a flash.
+  ipcRenderer.invoke('get-preferences').then((preferences) => {
+    const theme = preferences?.theme;
+    if (typeof theme === 'string' && theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }).catch(() => {
+    // Silently fall back to the CSS default if preferences cannot be read.
+  });
+
   if (!window.location.hash) {
     navigate('library', { replace: true });
     return;
