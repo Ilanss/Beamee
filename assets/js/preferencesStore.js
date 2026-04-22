@@ -9,7 +9,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     paddingLeft: 10,
     paddingRight: 10,
     useArrangement: true,
-    theme: 'light',
+    theme: 'system',
 });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);

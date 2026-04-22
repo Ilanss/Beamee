@@ -1,3 +1,5 @@
+import { resolveTheme } from './themeUtils.js';
+
 let rootElement = null;
 let fontSelect = null;
 let form = null;
@@ -97,7 +99,7 @@ const showStatus = (message, isError = false) => {
 
 const applyThemeToDocument = (theme) => {
   if (typeof theme === 'string' && theme) {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', resolveTheme(theme));
   }
 };
 
@@ -355,6 +357,16 @@ export async function mount(root, context = {}) {
   onIpc('preferences:changed', (preferences) => {
     applyPreferencesToForm(preferences);
   });
+
+  const osDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  const onOsSchemeChange = () => {
+    const theme = selectedTheme || currentPreferences?.theme;
+    if (theme === 'system') {
+      applyThemeToDocument('system');
+    }
+  };
+  osDarkMedia.addEventListener('change', onOsSchemeChange);
+  cleanupTasks.push(() => osDarkMedia.removeEventListener('change', onOsSchemeChange));
 
   on(saveButton, 'click', async () => {
     await savePreferencesFromForm();

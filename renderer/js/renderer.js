@@ -1,3 +1,5 @@
+import { resolveTheme } from './themeUtils.js';
+
 let rootElement = null;
 let toggleProjectionButton = null;
 let prevVerse = null;
@@ -550,7 +552,7 @@ function applyPreviewPreferences(preferences) {
     previewContent.style.paddingRight = `${preferences.paddingRight}px`;
 
     if (preferences.theme) {
-        document.documentElement.setAttribute('data-theme', preferences.theme);
+        document.documentElement.setAttribute('data-theme', resolveTheme(preferences.theme));
     }
 }
 
@@ -1258,6 +1260,15 @@ export async function mount(root, context = {}) {
             renderPreviewEditor();
         }
     });
+
+    const osDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    const onOsSchemeChange = () => {
+        if (currentPreferences?.theme === 'system') {
+            document.documentElement.setAttribute('data-theme', resolveTheme('system'));
+        }
+    };
+    osDarkMedia.addEventListener('change', onOsSchemeChange);
+    cleanupTasks.push(() => osDarkMedia.removeEventListener('change', onOsSchemeChange));
 
     onIpc('library:changed', async () => {
         if (!isMountCurrent()) {

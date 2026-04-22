@@ -1,3 +1,5 @@
+import { resolveTheme } from './themeUtils.js';
+
 const ROUTES = {
   library: {
     title: 'Beamee',
@@ -181,7 +183,7 @@ window.addEventListener('DOMContentLoaded', () => {
   ipcRenderer.invoke('get-preferences').then((preferences) => {
     const theme = preferences?.theme;
     if (typeof theme === 'string' && theme) {
-      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.setAttribute('data-theme', resolveTheme(theme));
     }
   }).catch(() => {
     // Silently fall back to the CSS default if preferences cannot be read.
