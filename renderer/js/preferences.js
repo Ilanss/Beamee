@@ -36,6 +36,18 @@ const on = (target, eventName, handler, options) => {
   });
 };
 
+function loadMenu(menuPage) {
+  if (!menuPage) {
+    return;
+  }
+
+  document.querySelectorAll('.menu-page').forEach((anchor) => {
+    anchor.hidden = true;
+  });
+
+  document.querySelector("#" + menuPage).hidden = false;
+}
+
 const onIpc = (channel, handler) => {
   ipcRenderer.on(channel, handler);
   cleanupTasks.push(() => {
@@ -268,6 +280,23 @@ export async function mount(root, context = {}) {
   form = rootElement.querySelector('#preferences-form');
   saveButton = rootElement.querySelector('#save-preferences');
   statusElement = rootElement.querySelector('#preferences-status');
+
+  on(rootElement.querySelector('.menu'), 'click', (e) => {
+    const item = e.target.closest('li[data-settings-id]');
+
+    if (!item) {
+      return;
+    }
+
+    const menuPage = item.dataset.settingsId;
+
+    rootElement.querySelectorAll('li a.menu-active').forEach((anchor) => {
+      anchor.classList.remove('menu-active');
+    });
+
+    item.querySelector('a')?.classList.add('menu-active');
+    loadMenu(menuPage);
+  });
 
   colorFieldIds.forEach(bindColorField);
 

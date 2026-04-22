@@ -3,7 +3,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     fontSize: 50,
     textColor: '#ffffff',
     backgroundColor: '#000000',
-    lineHeight: 1,
+    lineHeight: 1.5,
     paddingTop: 10,
     paddingBottom: 10,
     paddingLeft: 10,
