@@ -14,7 +14,6 @@ contextBridge.exposeInMainWorld('fs', {
     writeFileSync: (file, data) => fs.writeFileSync(file, data),
     mkdirSync: (dir) => fs.mkdirSync(dir),
     existsSync: (file) => fs.existsSync(file),
-    lstatSync: (file) => fs.lstatSync(file)
 });
 
 contextBridge.exposeInMainWorld('ipcRenderer', {

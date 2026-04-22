@@ -3,7 +3,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     fontSize: 50,
     textColor: '#ffffff',
     backgroundColor: '#000000',
-    lineHeight: 1,
+    lineHeight: 1.5,
     paddingTop: 10,
     paddingBottom: 10,
     paddingLeft: 10,
@@ -30,8 +30,8 @@ const isBoolean = (value) => typeof value === 'boolean';
 const normalizePreferences = (preferences = {}) => {
     const source = isObject(preferences) ? preferences : {};
 
+    // Only known keys are included — unknown keys from future or corrupted files are dropped.
     return {
-        ...source,
         fontFamily: typeof source.fontFamily === 'string' && source.fontFamily.trim()
             ? source.fontFamily.trim()
             : DEFAULT_PREFERENCES.fontFamily,

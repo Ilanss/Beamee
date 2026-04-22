@@ -1,6 +1,8 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+@plugin "daisyui";
+@source "../../renderer/**/*.html";
+@source "../../renderer/**/*.js";
 
 body {
   height: 100vh;
@@ -8,31 +10,37 @@ body {
 
 /* GRID LAYOUT */
 
-.wrapper {  display: grid;
-    grid-template-columns: clamp(200px, 20%, 350px) 1fr clamp(200px, 20%, 500px);
-    grid-template-rows: 1fr max-content;
-    gap: 0px 0px; 
-    grid-auto-flow: row;
-    grid-template-areas:
-      "sidebar verse-display preview-box"
-      "sidebar controls controls";
-      width: 100%;
-  }
-  
-  .controls { grid-area: controls; }
-  
-  .sidebar { grid-area: sidebar; }
-  
-.preview-box { grid-area: preview-box; }
-  
-  #verse-display { grid-area: verse-display; }
-    
+.wrapper {
+  display: grid;
+  grid-template-columns: clamp(200px, 20%, 350px) 1fr clamp(200px, 20%, 500px);
+  grid-template-rows: 1fr max-content;
+  gap: 0px 0px;
+  grid-auto-flow: row;
+  grid-template-areas:
+    "sidebar verse-display preview-box"
+    "sidebar controls controls";
+  width: 100%;
+}
+
+.controls {
+  grid-area: controls;
+}
+
+.sidebar {
+  grid-area: sidebar;
+}
+
+.preview-box {
+  grid-area: preview-box;
+}
+
+#verse-display {
+  grid-area: verse-display;
+}
+
 /* MAIN WINDOW STYLING */
 
-#main {
-    font-family: sans-serif;
-
-}
+#main {}
 
 #verse-display {
   overflow-y: scroll;
@@ -56,27 +64,26 @@ body {
   box-sizing: border-box;
 }
 
-/* .tooltip {
-  transition: opacity 0.3s;
-  opacity: 0;
-  visibility: hidden;
-} */
-
-.tooltip-delay {
-  transition-delay: 5s; /* Adjust the delay as needed */
+#settings-button-wrapper {
+  width: 80px;
+  /* text-align: right; */
 }
 
-.group:hover .tooltip {
-  opacity: 1;
-  visibility: visible;
+.input, select, .file-input, .textarea {
+
+  &:focus,
+  &:focus-within {
+    outline: 1px;
+    outline-offset: 0;
+  }
 }
 
 /* PROJECTOR STYLING */
 
 #projection {
-    background-color: #000000;
-    color: #FFFFFF;
-    font-family: sans-serif;
-    font-weight: bold;
-    padding: 2rem;
+  background-color: #000000;
+  color: #FFFFFF;
+  font-family: sans-serif;
+  font-weight: bold;
+  padding: 2rem;
 }

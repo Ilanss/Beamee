@@ -185,7 +185,4 @@ window.addEventListener('DOMContentLoaded', () => {
   renderRoute(normalizeRoute(window.location.hash));
 });
 
-window.beameeRouter = {
-  navigate,
-  getCurrentRoute: () => activeRouteName,
-};
+

@@ -12,13 +12,8 @@ const readFile = (filePath) => {
 };
 
 const writeFile = (filePath, content) => {
-    try {
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
-        console.log(`File written successfully: ${filePath}`);
-    } catch (err) {
-        console.error(`Error writing file: ${filePath}`, err);
-    }
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(content, null, 2));
 };
 
 module.exports = {
