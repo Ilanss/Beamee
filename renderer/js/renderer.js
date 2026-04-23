@@ -286,6 +286,28 @@ function updateDraftSectionIds(draft) {
     }
 }
 
+function syncDraftSectionsFromEditorOrder(draft) {
+    if (!main || !draft || !isSongEditing) {
+        return;
+    }
+
+    const orderedIds = Array.from(main.querySelectorAll('li[data-section-id]'))
+        .map((item) => item.dataset.sectionId)
+        .filter(Boolean);
+
+    if (!orderedIds.length) {
+        return;
+    }
+
+    const nextSections = orderedIds
+        .map((sectionId) => draft.sections.find((section) => section.id === sectionId))
+        .filter(Boolean);
+
+    if (nextSections.length === draft.sections.length) {
+        draft.sections = nextSections;
+    }
+}
+
 function getDraftCollectionIndex(draft) {
     if (!draft?.collections?.length) {
         return -1;
@@ -776,9 +798,9 @@ function renderSongSectionsEditor() {
             filter: 'button, input, textarea, select',
             preventOnFilter: false,
             onEnd: () => {
-                const orderedIds = Array.from(main.querySelectorAll('li[data-section-id]')).map((item) => item.dataset.sectionId);
-                draft.sections = orderedIds.map((sectionId) => draft.sections.find((section) => section.id === sectionId)).filter(Boolean);
+                syncDraftSectionsFromEditorOrder(draft);
                 updateDraftSectionIds(draft);
+                markSongEditorDirty();
                 renderPreviewEditor();
             },
         });
@@ -1120,6 +1142,7 @@ async function saveCurrentSongDraft(options = {}) {
 
     const draft = ensureDraftShape(currentSongDraft);
     syncCurrentCollectionFromEditor(draft);
+    syncDraftSectionsFromEditorOrder(draft);
 
     const titleInput = songNameNode?.querySelector('input');
     if (titleInput) {
