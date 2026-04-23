@@ -129,6 +129,9 @@ const getSongPathForId = (songId) => {
 const getCurrentSongPath = () => currentSongPath;
 
 const isMac = process.platform === 'darwin';
+const windowIcon = process.platform === 'win32'
+    ? path.join(__dirname, 'renderer', 'img', 'beamee-icon.ico')
+    : undefined;
 
 const collectJsonFilesFromDirectory = (directoryPath, basePath = directoryPath) => {
     const files = [];
@@ -834,6 +837,7 @@ const createMainWindow = () => {
     mainWindow = new BrowserWindow({
         width: isDev ? 1600 : 800,
         height: 600,
+        icon: windowIcon,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -879,6 +883,7 @@ const createProjectorWindow = () => {
         fullscreen: true,
         width: isDev ? 1200 : 800,
         height: 600,
+        icon: windowIcon,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
