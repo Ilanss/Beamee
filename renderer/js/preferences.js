@@ -386,6 +386,14 @@ export async function mount(root, context = {}) {
     }
   });
 
+  on(rootElement.querySelector('#btn-github'), 'click', () => {
+    ipcRenderer.invoke('open-external-url', 'https://github.com/Ilanss/Beamee');
+  });
+
+  on(rootElement.querySelector('#btn-kofi'), 'click', () => {
+    ipcRenderer.invoke('open-external-url', 'https://ko-fi.com/ilans_');
+  });
+
   on(rootElement.querySelector('#restore-defaults'), 'click', async () => {
     try {
       showStatus('Restoring defaults...');

@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, Menu, ipcMain, screen, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell } = require('electron');
 const archiver = require('archiver');
 
 const libraryController = require('./assets/js/libraryController.js');
@@ -1236,4 +1236,8 @@ ipcMain.on('song:selected', (event, songPath) => {
 ipcMain.on('song:loaded', (event, verseCount) => {
     unregisterShortcuts(lastVerseCount);
     registerShortcuts(verseCount);
+});
+
+ipcMain.handle('open-external-url', (event, url) => {
+    shell.openExternal(url);
 });
