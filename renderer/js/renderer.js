@@ -954,17 +954,7 @@ function renderCollectionEditor() {
                 markSongEditorDirty();
                 renderSongHeader();
             } else {
-                const nextCollection = {
-                    name: nameInput.value,
-                    collectionId: '',
-                    reference: '',
-                    number: undefined,
-                };
-                currentSongDraft.collections.push(nextCollection);
-                currentCollectionSelection = String(currentSongDraft.collections.length - 1);
                 markSongEditorDirty();
-                renderCollectionEditor();
-                renderSongHeader();
             }
         });
     }
@@ -1084,7 +1074,7 @@ function cancelSongEdit() {
 }
 
 function syncCurrentCollectionFromEditor(draft) {
-    if (!draft.collections.length) {
+    if (!draft.collections.length && currentCollectionSelection !== 'new') {
         return;
     }
 
@@ -1096,9 +1086,13 @@ function syncCurrentCollectionFromEditor(draft) {
         const numberInput = editorControlsRoot?.querySelector('input[placeholder="Collection number"]');
 
         const name = typeof nameInput?.value === 'string' ? nameInput.value.trim() : '';
-        const collectionId = typeof idInput?.value === 'string' && idInput.value.trim()
-            ? idInput.value.trim()
-            : generateCollectionIdFromName(name);
+        const explicitId = typeof idInput?.value === 'string' ? idInput.value.trim() : '';
+
+        if (!name && !explicitId) {
+            return;
+        }
+
+        const collectionId = explicitId || generateCollectionIdFromName(name);
 
         collection = {
             name,
@@ -1126,7 +1120,7 @@ function syncCurrentCollectionFromEditor(draft) {
 
     collection.name = typeof nameInput?.value === 'string' && nameInput.value.trim()
         ? nameInput.value.trim()
-        : collection.name || draft.name || 'Collection 1';
+        : collection.name || collection.collectionId;
     collection.collectionId = typeof idInput?.value === 'string' && idInput.value.trim()
         ? idInput.value.trim()
         : generateCollectionIdFromName(collection.name);
@@ -1666,7 +1660,7 @@ function createFileList(files, container) {
                 </svg>
             `));
 
-            if (songData.collections[0] !== undefined) {
+            if (songData.collections[0] !== undefined && songData.collections[0].number !== undefined) {
                 const collectionSpan = document.createElement('span');
                 collectionSpan.textContent = '#' + songData.collections[0].number;
                 collectionSpan.className = 'opacity-60';
