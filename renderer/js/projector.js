@@ -25,6 +25,16 @@ const applyPreferences = (preferences) => {
   document.body.style.paddingBottom = `${preferences.paddingBottom}px`;
   document.body.style.paddingLeft = `${preferences.paddingLeft}px`;
   document.body.style.paddingRight = `${preferences.paddingRight}px`;
+
+  if (preferences.backgroundImage) {
+    document.body.style.backgroundImage = `url('beamee-asset://${preferences.backgroundImage}')`;
+    document.body.style.backgroundSize = 'cover';
+    // document.body.style.backgroundPosition = 'center';
+  } else {
+    document.body.style.backgroundImage = '';
+    document.body.style.backgroundSize = '';
+    document.body.style.backgroundPosition = '';
+  }
 };
 
 ipcRenderer.on('display-lyrics', (lyrics) => {

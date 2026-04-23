@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell, protocol, net } = require('electron');
 const archiver = require('archiver');
 
 const libraryController = require('./assets/js/libraryController.js');
@@ -9,6 +9,12 @@ const songSchema = require('./assets/js/songSchema.js');
 const { DEFAULT_PREFERENCES, mergePreferences, normalizePreferences } = require('./assets/js/preferencesStore.js');
 
 const isDev = !app.isPackaged;
+
+// Register beamee-asset:// as a privileged scheme so it can be used in CSS
+// background-image from renderer and projector contexts.
+protocol.registerSchemesAsPrivileged([
+    { scheme: 'beamee-asset', privileges: { secure: true, standard: true, supportFetchAPI: true } },
+]);
 
 let isProjectionOn = false;
 let projectorWindow;
@@ -929,7 +935,68 @@ const savePreferences = (preferences) => {
     return nextPreferences;
 };
 
+// Returns the file path for a given background image filename stored in userData.
+const getBackgroundImagePath = (filename) => {
+    if (!filename || typeof filename !== 'string') {
+        return null;
+    }
+    // Only allow simple filenames (no path separators) to prevent traversal.
+    const base = path.basename(filename);
+    return path.join(appDataPaths.baseDir, base);
+};
+
+// Removes any existing background image file whose name starts with 'background-image.'
+// from userData, except for the one we are about to write (excludeFilename).
+const cleanOldBackgroundImages = (excludeFilename = null) => {
+    try {
+        const entries = fs.readdirSync(appDataPaths.baseDir);
+        for (const entry of entries) {
+            if (!entry.startsWith('background-image.')) {
+                continue;
+            }
+            if (excludeFilename && entry === excludeFilename) {
+                continue;
+            }
+            try {
+                fs.unlinkSync(path.join(appDataPaths.baseDir, entry));
+            } catch (err) {
+                console.warn(`Failed to delete old background image: ${entry}`, err);
+            }
+        }
+    } catch (err) {
+        console.warn('Failed to clean old background images', err);
+    }
+};
+
+const setBackgroundImage = (sourcePath, ext) => {
+    if (!sourcePath || !ext) {
+        throw new Error('Invalid source path or extension');
+    }
+
+    // Normalise extension: strip leading dot, lowercase, allow only safe chars.
+    const safeExt = String(ext).toLowerCase().replace(/^\./, '').replace(/[^a-z0-9]/g, '');
+    if (!safeExt) {
+        throw new Error('Invalid image extension');
+    }
+
+    const filename = `background-image.${safeExt}`;
+    const destPath = path.join(appDataPaths.baseDir, filename);
+
+    // Copy source file to userData, then clean up old differently-named files.
+    fs.copyFileSync(sourcePath, destPath);
+    cleanOldBackgroundImages(filename);
+
+    return savePreferences({ backgroundImage: filename });
+};
+
+const removeBackgroundImage = () => {
+    cleanOldBackgroundImages(null);
+    return savePreferences({ backgroundImage: null });
+};
+
 const restoreDefaultPreferences = () => {
+    // Also remove the background image file when restoring defaults.
+    cleanOldBackgroundImages(null);
     return savePreferences(DEFAULT_PREFERENCES);
 };
 
@@ -1159,6 +1226,18 @@ ipcMain.handle('favorites:update', (event, favorites) => {
   
 app.whenReady().then(() => {
     appDataPaths = bootstrapAppData();
+
+    // Serve files from userData under the beamee-asset:// scheme.
+    // This lets the renderer and projector load the background image securely
+    // without exposing arbitrary file:// paths.
+    protocol.handle('beamee-asset', (request) => {
+        const url = new URL(request.url);
+        // url.hostname is the filename; url.pathname is '/' for simple names.
+        const filename = decodeURIComponent(url.hostname + url.pathname).replace(/^\//, '');
+        const filePath = path.join(appDataPaths.baseDir, path.basename(filename));
+        return net.fetch(`file://${filePath}`);
+    });
+
     createMainWindow();
 
     app.on('activate', () => {
@@ -1175,6 +1254,47 @@ ipcMain.handle('save-preferences', (event, preferences) => {
         return savePreferences(preferences);
     } catch (error) {
         console.error('Error saving preferences', error);
+        throw error;
+    }
+});
+
+ipcMain.handle('preferences:pick-background-image', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    const { canceled, filePaths } = await dialog.showOpenDialog(window, {
+        title: 'Choose background image',
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] }],
+    });
+
+    if (canceled || !filePaths.length) {
+        return null;
+    }
+
+    const sourcePath = filePaths[0];
+    const ext = path.extname(sourcePath).replace(/^\./, '') || 'jpg';
+
+    try {
+        return setBackgroundImage(sourcePath, ext);
+    } catch (error) {
+        console.error('Error setting background image', error);
+        throw error;
+    }
+});
+
+ipcMain.handle('preferences:set-background-image', (event, { sourcePath, ext } = {}) => {
+    try {
+        return setBackgroundImage(sourcePath, ext);
+    } catch (error) {
+        console.error('Error setting background image', error);
+        throw error;
+    }
+});
+
+ipcMain.handle('preferences:remove-background-image', () => {
+    try {
+        return removeBackgroundImage();
+    } catch (error) {
+        console.error('Error removing background image', error);
         throw error;
     }
 });

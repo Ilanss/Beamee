@@ -101,9 +101,11 @@
 
       <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border p-4">
         <legend class="fieldset-legend">Background image</legend>
-        <!-- <label class="label">Background image</label> -->
-        <input type="file" class="file-input w-full" />
-        <label class="label">Max size 2MB</label>
+        <div class="mb-2 flex items-center justify-between gap-3">
+          <span id="background-image-name" class="text-sm opacity-50">No image set</span>
+          <button type="button" id="remove-background-image" class="btn btn-sm btn-error" hidden>Remove</button>
+        </div>
+        <button type="button" id="background-image" class="btn btn-outline w-full">Choose image...</button>
       </fieldset>
 
       <fieldset class="fieldset md:flex bg-base-200 border-base-300 rounded-box border p-4">

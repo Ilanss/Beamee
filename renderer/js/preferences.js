@@ -5,6 +5,9 @@ let fontSelect = null;
 let form = null;
 let saveButton = null;
 let statusElement = null;
+let backgroundImageButton = null;
+let removeBackgroundImageButton = null;
+let backgroundImageNameEl = null;
 let mounted = false;
 const colorFieldIds = ['text-color', 'background-color'];
 
@@ -222,6 +225,71 @@ const getAvailableFonts = async () => {
   }
 };
 
+const applyBackgroundImageToForm = (backgroundImage) => {
+  const hasImage = typeof backgroundImage === 'string' && backgroundImage.trim();
+
+  if (backgroundImageNameEl) {
+    backgroundImageNameEl.textContent = hasImage ? backgroundImage : 'No image set';
+    backgroundImageNameEl.classList.toggle('opacity-50', !hasImage);
+  }
+
+  if (removeBackgroundImageButton) {
+    removeBackgroundImageButton.hidden = !hasImage;
+  }
+};
+
+const bindBackgroundImageField = () => {
+  backgroundImageButton = rootElement?.querySelector('#background-image');
+  removeBackgroundImageButton = rootElement?.querySelector('#remove-background-image');
+  backgroundImageNameEl = rootElement?.querySelector('#background-image-name');
+
+  if (backgroundImageButton) {
+    on(backgroundImageButton, 'click', async () => {
+      try {
+        showStatus('Opening file picker...');
+        // Returns null if the user cancelled, or the updated preferences object.
+        const preferences = await ipcRenderer.invoke('preferences:pick-background-image');
+
+        if (!isMountCurrent()) {
+          return;
+        }
+
+        if (preferences === null) {
+          showStatus('');
+          return;
+        }
+
+        applyPreferencesToForm(preferences);
+        showStatus('Background image saved.');
+      } catch (error) {
+        console.error('Failed to set background image', error);
+        if (isMountCurrent()) {
+          showStatus('Failed to save background image.', true);
+        }
+      }
+    });
+  }
+
+  if (removeBackgroundImageButton) {
+    on(removeBackgroundImageButton, 'click', async () => {
+      try {
+        showStatus('Removing image...');
+        const preferences = await ipcRenderer.invoke('preferences:remove-background-image');
+
+        if (isMountCurrent()) {
+          applyPreferencesToForm(preferences);
+          showStatus('Background image removed.');
+        }
+      } catch (error) {
+        console.error('Failed to remove background image', error);
+        if (isMountCurrent()) {
+          showStatus('Failed to remove background image.', true);
+        }
+      }
+    });
+  }
+};
+
 const applyPreferencesToForm = (preferences) => {
   if (!fontSelect || !preferences) {
     return false;
@@ -241,6 +309,8 @@ const applyPreferencesToForm = (preferences) => {
   setInputValue('padding-bottom', preferences.paddingBottom);
   setInputValue('padding-left', preferences.paddingLeft);
   setInputValue('padding-right', preferences.paddingRight);
+
+  applyBackgroundImageToForm(preferences.backgroundImage ?? null);
 
   const themeCards = rootElement?.querySelectorAll('[data-set-theme]') ?? [];
   const availableThemes = new Set(Array.from(themeCards).map((c) => c.dataset.setTheme));
@@ -319,6 +389,7 @@ export async function mount(root, context = {}) {
   });
 
   colorFieldIds.forEach(bindColorField);
+  bindBackgroundImageField();
 
   on(rootElement.querySelector('#settings-appearence'), 'click', (e) => {
     const card = e.target.closest('[data-set-theme]');
@@ -443,6 +514,9 @@ export async function unmount() {
   form = null;
   saveButton = null;
   statusElement = null;
+  backgroundImageButton = null;
+  removeBackgroundImageButton = null;
+  backgroundImageNameEl = null;
   mountContext = null;
   selectedTheme = null;
 }

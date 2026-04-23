@@ -44,3 +44,4 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 contextBridge.exposeInMainWorld('Sortable', {
     create: (element, options) => Sortable.create(element, options)
 });
+

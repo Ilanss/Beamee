@@ -3,6 +3,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     fontSize: 50,
     textColor: '#ffffff',
     backgroundColor: '#000000',
+    backgroundImage: null,
     lineHeight: 1.5,
     paddingTop: 10,
     paddingBottom: 10,
@@ -43,6 +44,9 @@ const normalizePreferences = (preferences = {}) => {
         backgroundColor: isHexColor(source.backgroundColor)
             ? source.backgroundColor.trim()
             : DEFAULT_PREFERENCES.backgroundColor,
+        backgroundImage: typeof source.backgroundImage === 'string' && source.backgroundImage.trim()
+            ? source.backgroundImage.trim()
+            : DEFAULT_PREFERENCES.backgroundImage,
         lineHeight: clampNumber(source.lineHeight, DEFAULT_PREFERENCES.lineHeight, 0.5, 3),
         paddingTop: clampNumber(source.paddingTop, DEFAULT_PREFERENCES.paddingTop, 0, 200),
         paddingBottom: clampNumber(source.paddingBottom, DEFAULT_PREFERENCES.paddingBottom, 0, 200),

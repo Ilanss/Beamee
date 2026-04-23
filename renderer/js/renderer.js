@@ -573,6 +573,16 @@ function applyPreviewPreferences(preferences) {
     previewContent.style.paddingLeft = `${preferences.paddingLeft}px`;
     previewContent.style.paddingRight = `${preferences.paddingRight}px`;
 
+    if (preferences.backgroundImage) {
+        previewContent.style.backgroundImage = `url('beamee-asset://${preferences.backgroundImage}')`;
+        previewContent.style.backgroundSize = 'cover';
+        previewContent.style.backgroundPosition = 'center';
+    } else {
+        previewContent.style.backgroundImage = '';
+        previewContent.style.backgroundSize = '';
+        previewContent.style.backgroundPosition = '';
+    }
+
     if (preferences.theme) {
         document.documentElement.setAttribute('data-theme', resolveTheme(preferences.theme));
     }
