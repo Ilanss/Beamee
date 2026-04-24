@@ -63,40 +63,14 @@ const forwardUpdaterEvents = () => {
     });
     autoUpdater.on('update-downloaded', () => {
         mainWindow?.webContents.send('updater:status', { event: 'downloaded' });
+        showRestartDialog();
     });
     autoUpdater.on('error', (err) => {
         mainWindow?.webContents.send('updater:status', { event: 'error', message: err?.message || 'Unknown error' });
     });
 };
 
-// Startup update check: fires once the main window is fully loaded.
-// Shows a native dialog if an update is available; downloads silently on
-// user confirmation, then prompts to restart when the download completes.
-const performStartupUpdateCheck = async () => {
-    try {
-        const result = await autoUpdater.checkForUpdates();
-        if (!result?.updateInfo) return;
-    } catch (err) {
-        console.error('Startup update check failed:', err);
-    }
-};
-
-autoUpdater.once('update-available', async (info) => {
-    const { response } = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update available',
-        message: `Beamee ${info.version} is available.`,
-        detail: 'Would you like to download and install it now?',
-        buttons: ['Download & Install', 'Later'],
-        defaultId: 0,
-        cancelId: 1,
-    });
-    if (response === 0) {
-        autoUpdater.downloadUpdate();
-    }
-});
-
-autoUpdater.once('update-downloaded', async () => {
+const showRestartDialog = async () => {
     const { response } = await dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update ready',
@@ -109,7 +83,35 @@ autoUpdater.once('update-downloaded', async () => {
     if (response === 0) {
         autoUpdater.quitAndInstall();
     }
-});
+};
+
+// Startup update check: fires once the main window is fully loaded.
+// Attaches scoped once-listeners so they never interfere with manual checks.
+const performStartupUpdateCheck = async () => {
+    try {
+        autoUpdater.once('update-available', async (info) => {
+            const { response } = await dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Update available',
+                message: `Beamee ${info.version} is available.`,
+                detail: 'Would you like to download and install it now?',
+                buttons: ['Download & Install', 'Later'],
+                defaultId: 0,
+                cancelId: 1,
+            });
+            if (response === 0) {
+                autoUpdater.downloadUpdate();
+                autoUpdater.once('update-downloaded', () => {
+                    showRestartDialog();
+                });
+            }
+        });
+
+        await autoUpdater.checkForUpdates();
+    } catch (err) {
+        console.error('Startup update check failed:', err);
+    }
+};
 // --- End auto-updater configuration ---
 
 const getAppDataPaths = () => {

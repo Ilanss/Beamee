@@ -1,7 +1,7 @@
 {
   "name": "beamee",
   "productName": "Beamee",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -36,7 +36,12 @@
     },
     "mac": {
       "icon": "renderer/img/beamee-icon.icns",
-      "target": ["dmg", "zip"]
+      "target": ["dmg", "zip"],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": true
     },
     "win": {
       "icon": "renderer/img/beamee-icon.ico",
