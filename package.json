@@ -1,7 +1,7 @@
 {
   "name": "beamee",
   "productName": "Beamee",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "",
   "main": "main.js",
   "scripts": {
@@ -16,6 +16,7 @@
   "build": {
     "appId": "com.ilans.beamee",
     "productName": "Beamee",
+    "copyright": "",
     "asar": true,
     "files": [
       "**/*",
