@@ -429,6 +429,84 @@ export async function mount(root, context = {}) {
     applyPreferencesToForm(preferences);
   });
 
+  // --- Updater UI ---
+  const appVersionEl = rootElement.querySelector('#app-version');
+  const updateStatusEl = rootElement.querySelector('#update-status');
+  const checkForUpdateBtn = rootElement.querySelector('#check-for-update');
+  const downloadUpdateBtn = rootElement.querySelector('#download-update');
+  const installUpdateBtn = rootElement.querySelector('#install-update');
+  const updateProgressEl = rootElement.querySelector('#update-progress');
+
+  if (appVersionEl) {
+    ipcRenderer.invoke('app:get-version').then((version) => {
+      if (isMountCurrent()) appVersionEl.textContent = version;
+    }).catch(() => {});
+  }
+
+  const setUpdateStatus = (text) => {
+    if (updateStatusEl) updateStatusEl.textContent = text;
+  };
+
+  const setUpdateControls = ({ downloading = false, available = false, downloaded = false } = {}) => {
+    if (checkForUpdateBtn) checkForUpdateBtn.disabled = downloading;
+    if (downloadUpdateBtn) downloadUpdateBtn.hidden = !available;
+    if (installUpdateBtn) installUpdateBtn.hidden = !downloaded;
+    if (updateProgressEl) updateProgressEl.hidden = !downloading;
+  };
+
+  onIpc('updater:status', (_, { event, version, percent, message } = {}) => {
+    switch (event) {
+      case 'checking':
+        setUpdateStatus('Checking for updates...');
+        setUpdateControls({ downloading: true });
+        break;
+      case 'not-available':
+        setUpdateStatus("You're up to date.");
+        setUpdateControls();
+        break;
+      case 'available':
+        setUpdateStatus(`Update v${version} available.`);
+        setUpdateControls({ available: true });
+        break;
+      case 'progress':
+        setUpdateStatus(`Downloading... ${percent}%`);
+        setUpdateControls({ downloading: true });
+        if (updateProgressEl) updateProgressEl.value = percent ?? 0;
+        break;
+      case 'downloaded':
+        setUpdateStatus('Update ready to install.');
+        setUpdateControls({ downloaded: true });
+        break;
+      case 'error':
+        setUpdateStatus(`Update check failed.${message ? ' ' + message : ''}`);
+        setUpdateControls();
+        break;
+    }
+  });
+
+  on(checkForUpdateBtn, 'click', () => {
+    ipcRenderer.invoke('updater:check');
+  });
+
+  on(downloadUpdateBtn, 'click', () => {
+    ipcRenderer.invoke('updater:download');
+  });
+
+  on(installUpdateBtn, 'click', () => {
+    ipcRenderer.invoke('updater:install');
+  });
+
+  // When "Check for update..." is clicked in the File menu, navigate to the
+  // General tab and trigger the check so the user sees feedback in the UI.
+  onIpc('updater:trigger-check', () => {
+    // Activate the General nav item visually
+    rootElement.querySelectorAll('li a.menu-active').forEach((a) => a.classList.remove('menu-active'));
+    rootElement.querySelector('li[data-settings-id="settings-general"] a')?.classList.add('menu-active');
+    loadMenu('settings-general');
+    ipcRenderer.invoke('updater:check');
+  });
+  // --- End updater UI ---
+
   const osDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
   const onOsSchemeChange = () => {
     const theme = selectedTheme || currentPreferences?.theme;

@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const { app, BrowserWindow, Menu, ipcMain, screen, dialog, shell, protocol, net } = require('electron');
 const archiver = require('archiver');
+const { autoUpdater } = require('electron-updater');
 
 const libraryController = require('./assets/js/libraryController.js');
 const fileController = require('./assets/js/fileController.js');
@@ -24,6 +25,81 @@ let libraryState;
 let currentSongPath = null;
 
 let lastVerseCount;
+
+// --- Auto-updater configuration ---
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = true;
+
+// In dev mode electron-builder doesn't embed app-update.yml into resources,
+// so point the updater at the dev-app-update.yml file in the project root.
+if (isDev) {
+    autoUpdater.forceDevUpdateConfig = true;
+}
+
+// Forward all updater events to the renderer so the settings UI can react.
+const forwardUpdaterEvents = () => {
+    autoUpdater.on('checking-for-update', () => {
+        mainWindow?.webContents.send('updater:status', { event: 'checking' });
+    });
+    autoUpdater.on('update-not-available', () => {
+        mainWindow?.webContents.send('updater:status', { event: 'not-available' });
+    });
+    autoUpdater.on('update-available', (info) => {
+        mainWindow?.webContents.send('updater:status', { event: 'available', version: info.version });
+    });
+    autoUpdater.on('download-progress', (progress) => {
+        mainWindow?.webContents.send('updater:status', { event: 'progress', percent: Math.floor(progress.percent) });
+    });
+    autoUpdater.on('update-downloaded', () => {
+        mainWindow?.webContents.send('updater:status', { event: 'downloaded' });
+    });
+    autoUpdater.on('error', (err) => {
+        mainWindow?.webContents.send('updater:status', { event: 'error', message: err?.message || 'Unknown error' });
+    });
+};
+
+// Startup update check: fires once the main window is fully loaded.
+// Shows a native dialog if an update is available; downloads silently on
+// user confirmation, then prompts to restart when the download completes.
+const performStartupUpdateCheck = async () => {
+    try {
+        const result = await autoUpdater.checkForUpdates();
+        if (!result?.updateInfo) return;
+    } catch (err) {
+        console.error('Startup update check failed:', err);
+    }
+};
+
+autoUpdater.once('update-available', async (info) => {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update available',
+        message: `Beamee ${info.version} is available.`,
+        detail: 'Would you like to download and install it now?',
+        buttons: ['Download & Install', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+    });
+    if (response === 0) {
+        autoUpdater.downloadUpdate();
+    }
+});
+
+autoUpdater.once('update-downloaded', async () => {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update ready',
+        message: 'Update downloaded.',
+        detail: 'Restart Beamee now to apply the update?',
+        buttons: ['Restart now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+    });
+    if (response === 0) {
+        autoUpdater.quitAndInstall();
+    }
+});
+// --- End auto-updater configuration ---
 
 const getAppDataPaths = () => {
     const baseDir = app.getPath('userData');
@@ -855,8 +931,11 @@ const createMainWindow = () => {
 
     mainWindow.webContents.on('did-finish-load', () => {
         ensureLibraryDataLoaded();
+        performStartupUpdateCheck();
     });
 
+    // Attach persistent renderer-forwarding listeners once per window lifecycle.
+    forwardUpdaterEvents();
 }
 
 const navigateMainWindow = (routeName) => {
@@ -1072,6 +1151,12 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
               },
             },
             { type: 'separator' },
+            {
+              label: 'Check for update...',
+              click: () => {
+                mainWindow.webContents.send('updater:trigger-check');
+              },
+            },
             {
               label: 'Preferences',
               click: () => {
@@ -1365,4 +1450,22 @@ ipcMain.on('song:loaded', (event, verseCount) => {
 
 ipcMain.handle('open-external-url', (event, url) => {
     shell.openExternal(url);
+});
+
+ipcMain.handle('app:get-version', () => app.getVersion());
+
+ipcMain.handle('updater:check', async () => {
+    try {
+        await autoUpdater.checkForUpdates();
+    } catch (err) {
+        mainWindow?.webContents.send('updater:status', { event: 'error', message: err?.message || 'Unknown error' });
+    }
+});
+
+ipcMain.handle('updater:download', () => {
+    autoUpdater.downloadUpdate();
+});
+
+ipcMain.handle('updater:install', () => {
+    autoUpdater.quitAndInstall();
 });
