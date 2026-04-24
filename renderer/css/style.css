@@ -81,6 +81,13 @@ body {
   }
 }
 
+/* LIBRARY PINNED SONG */
+
+li.library-pinned-song {
+  margin-inline-start: calc(0.25rem * 4);
+  padding-inline-start: calc(0.25rem * 2);
+}
+
 /* PROJECTOR STYLING */
 
 #projection {

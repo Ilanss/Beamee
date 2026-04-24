@@ -1661,6 +1661,7 @@ function createFileList(files, container) {
             li.dataset.libraryKind = 'folder';
             details.appendChild(summary);
             details.appendChild(ul);
+            details.dataset.collectionId = file.collectionId ?? '';
 
             li.appendChild(details);
             enableFolderToggleFallback(details, summary);
@@ -2121,6 +2122,43 @@ function enableFavoriteFolderDropOpen(details, summary) {
     summary.addEventListener('dragover', openFolder);
 }
 
+function handleFolderToggle(details, isNowOpen) {
+    if (!currentSongPath) return;
+
+    const ul = details.querySelector(':scope > ul');
+    if (!ul) return;
+
+    const folderLi = details.parentElement;
+    if (!folderLi) return;
+
+    const parentUl = folderLi.parentElement;
+    if (!parentUl) return;
+
+    if (!isNowOpen) {
+        const activeLi = ul.querySelector(`li[data-song-path="${CSS.escape(currentSongPath)}"]`);
+        if (!activeLi) return;
+
+        activeLi.dataset.pinnedIndex = Array.from(ul.children).indexOf(activeLi);
+        activeLi.dataset.pinnedSong = 'true';
+        activeLi.dataset.pinnedCollectionId = details.dataset.collectionId ?? '';
+        activeLi.classList.add('library-pinned-song');
+        parentUl.insertBefore(activeLi, folderLi.nextSibling);
+    } else {
+        const pinnedLi = parentUl.querySelector(':scope > li[data-pinned-song="true"]');
+        if (!pinnedLi) return;
+        if (pinnedLi.dataset.pinnedCollectionId !== details.dataset.collectionId) return;
+
+        const index = parseInt(pinnedLi.dataset.pinnedIndex, 10);
+        const refNode = Number.isInteger(index) ? Array.from(ul.children)[index] ?? null : null;
+        ul.insertBefore(pinnedLi, refNode);
+
+        pinnedLi.classList.remove('library-pinned-song');
+        delete pinnedLi.dataset.pinnedSong;
+        delete pinnedLi.dataset.pinnedIndex;
+        delete pinnedLi.dataset.pinnedCollectionId;
+    }
+}
+
 function enableFolderToggleFallback(details, summary) {
     if (!details || !summary) {
         return;
@@ -2134,7 +2172,9 @@ function enableFolderToggleFallback(details, summary) {
         }
 
         event.preventDefault();
-        details.open = !details.open;
+        const willOpen = !details.open;
+        details.open = willOpen;
+        handleFolderToggle(details, willOpen);
     });
 
     summary.addEventListener('keydown', (event) => {
@@ -2214,10 +2254,34 @@ function serializeFavorites(rootList) {
         .filter(Boolean);
 }
 
+function unpinActiveSong() {
+    const pinnedLi = libraryListContainer?.querySelector('li[data-pinned-song="true"]');
+    if (!pinnedLi) return;
+
+    const collectionId = pinnedLi.dataset.pinnedCollectionId;
+    const folderDetails = libraryListContainer.querySelector(
+        `details[data-collection-id="${CSS.escape(collectionId)}"]`
+    );
+    const ul = folderDetails?.querySelector(':scope > ul');
+
+    if (ul) {
+        const index = parseInt(pinnedLi.dataset.pinnedIndex, 10);
+        const refNode = Number.isInteger(index) ? Array.from(ul.children)[index] ?? null : null;
+        ul.insertBefore(pinnedLi, refNode);
+    }
+
+    pinnedLi.classList.remove('library-pinned-song');
+    delete pinnedLi.dataset.pinnedSong;
+    delete pinnedLi.dataset.pinnedIndex;
+    delete pinnedLi.dataset.pinnedCollectionId;
+}
+
 function loadSong(songPath) {
     if (!songPath) {
         return;
     }
+
+    unpinActiveSong();
 
     try {
         setEditMode(false);
