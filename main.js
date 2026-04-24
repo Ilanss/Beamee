@@ -25,6 +25,7 @@ let libraryState;
 let currentSongPath = null;
 
 let lastVerseCount;
+let isManualUpdateCheck = false;
 
 // --- Auto-updater configuration ---
 autoUpdater.autoDownload = false;
@@ -43,6 +44,16 @@ const forwardUpdaterEvents = () => {
     });
     autoUpdater.on('update-not-available', () => {
         mainWindow?.webContents.send('updater:status', { event: 'not-available' });
+        if (isManualUpdateCheck) {
+            isManualUpdateCheck = false;
+            dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'No update available',
+                message: "You're up to date.",
+                detail: `Beamee ${app.getVersion()} is the latest version.`,
+                buttons: ['OK'],
+            });
+        }
     });
     autoUpdater.on('update-available', (info) => {
         mainWindow?.webContents.send('updater:status', { event: 'available', version: info.version });
@@ -1153,8 +1164,22 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
             { type: 'separator' },
             {
               label: 'Check for update...',
-              click: () => {
+              click: async () => {
+                // Navigate to the General tab if settings is already open.
                 mainWindow.webContents.send('updater:trigger-check');
+                try {
+                    isManualUpdateCheck = true;
+                    await autoUpdater.checkForUpdates();
+                } catch (err) {
+                    isManualUpdateCheck = false;
+                    dialog.showMessageBox(mainWindow, {
+                        type: 'error',
+                        title: 'Update check failed',
+                        message: 'Could not check for updates.',
+                        detail: err?.message || 'Unknown error',
+                        buttons: ['OK'],
+                    });
+                }
               },
             },
             {
@@ -1456,8 +1481,10 @@ ipcMain.handle('app:get-version', () => app.getVersion());
 
 ipcMain.handle('updater:check', async () => {
     try {
+        isManualUpdateCheck = true;
         await autoUpdater.checkForUpdates();
     } catch (err) {
+        isManualUpdateCheck = false;
         mainWindow?.webContents.send('updater:status', { event: 'error', message: err?.message || 'Unknown error' });
     }
 });
