@@ -1,80 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'" />
-    <link rel="stylesheet" href="css/output.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="js/renderer.js" defer></script>
-    <title>Beamee</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self'" />
+  <link rel="stylesheet" href="css/output.css">
+  <script type="module" src="js/router.js"></script>
+  <title>Beamee</title>
 </head>
-<body id="main">
-    <div class="wrapper h-full">
-        <div class="sidebar menu menu-xs bg-base-200 w-full max-w-xs">
-          <img src="img/beamee-logo-t.png" alt="" class="object-contain h-10 object-left mb-2">
-          <div class="library h-3/5 overflow-scroll">
-            <div id="library-title" class="flex justify-between items-center">
-              <h2 class="prose">Library</h2>
-              <a id="create-song-folder" class="hover:cursor-pointer tooltip tooltip-right" data-tip="Create a song folder">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                </svg>              
-              </a>
-              
-            </div>
-            <div id="library-list" class="">
-              <ul class="">
-              </ul>
-            </div>
-          </div>
-          <div class="favorites pt-4 h-1/4">
-            <div id="favorites-title" class="flex justify-between items-center">
-              <h2 class="prose">Favorites</h2>
-              <a id="create-playlist" class="hover:cursor-pointer tooltip tooltip-right" data-tip="Create a new playlist">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
-                </svg>              
-              </a>
-            </div>
-            <div id="favorites-list">
-                <ul>
-
-                </ul>
-            </div>
-          </div>
-        </div>
-        <div id="verse-display" class="prose px-4">
-          <h2 id="song-name" class="my-4"></h2>
-          <ul class="list-none p-0">
-              <div class="text-center pt-16 text-lg font-bold">
-                <p></p><i class="bi bi-arrow-left pr-3"></i>Select a song</p>
-              </div>
-          </ul>
-        </div>
-        <div id="preview-box" class="preview-box">
-          <div id="preview" class="bg-neutral-900 text-white rounded-md m-2 p-2 font-bold aspect-video text-xs"></div>
-          <!-- <iframe id="preview-window" src="projector.html"></iframe> -->
-        </div>
-          <div class="controls flex justify-center items-center space-x-2 py-2 border-t dark:border-neutral-700">
-            <button id="prev-verse" class="btn btn-sm btn-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
-              <path d="M8.5 4.75a.75.75 0 0 0-1.107-.66l-6 3.25a.75.75 0 0 0 0 1.32l6 3.25a.75.75 0 0 0 1.107-.66V8.988l5.393 2.921A.75.75 0 0 0 15 11.25v-6.5a.75.75 0 0 0-1.107-.66L8.5 7.013V4.75Z" />
-            </svg>
-            </button>
-            <button id="toggle-projection" class="btn btn-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
-              <path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z" />
-            </svg>
-            </button>
-              <button id="next-verse" class="btn btn-sm btn-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
-                <path d="M2.53 3.956A1 1 0 0 0 1 4.804v6.392a1 1 0 0 0 1.53.848l5.113-3.196c.16-.1.279-.233.357-.383v2.73a1 1 0 0 0 1.53.849l5.113-3.196a1 1 0 0 0 0-1.696L9.53 3.956A1 1 0 0 0 8 4.804v2.731a.992.992 0 0 0-.357-.383L2.53 3.956Z" />
-              </svg>
-              </button>
-              <button id="black-screen" class="btn btn-sm btn-circle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4">
-                <path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 0 0-1.06 1.06l10.5 10.5a.75.75 0 1 0 1.06-1.06l-1.322-1.323a7.012 7.012 0 0 0 2.16-3.11.87.87 0 0 0 0-.567A7.003 7.003 0 0 0 4.82 3.76l-1.54-1.54Zm3.196 3.195 1.135 1.136A1.502 1.502 0 0 1 9.45 8.389l1.136 1.135a3 3 0 0 0-4.109-4.109Z" clip-rule="evenodd" />
-                <path d="m7.812 10.994 1.816 1.816A7.003 7.003 0 0 1 1.38 8.28a.87.87 0 0 1 0-.566 6.985 6.985 0 0 1 1.113-2.039l2.513 2.513a3 3 0 0 0 2.806 2.806Z" />
-              </svg>
-              </button>
-            </div>
-      </div>
+<body id="main" class="h-screen overflow-hidden">
+  <div id="view-root" class="h-full"></div>
 </body>
 </html>

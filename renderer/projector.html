@@ -3,30 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline'" />
-    <title>Document</title>
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self'" />
+    <title>Beamee Projection</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- <script src="js/renderer.js" defer></script> -->
 </head>
 <body id="projection">
     <div id="lyrics"></div>
-
-    <script>
-
-        ipcRenderer.on('display-lyrics', (lyrics) => {
-          document.getElementById('lyrics').innerHTML = `<p>${lyrics}</p>`;
-        });
-    
-        ipcRenderer.on('black-screen', () => {
-          document.getElementById('lyrics').innerHTML = '';
-        });
-    
-        const preferences = ipcRenderer.sendSync('get-preferences');
-        document.body.style.fontFamily = preferences.fontFamily;
-        document.body.style.fontSize = `${preferences.fontSize}px`;
-        document.body.style.color = preferences.textColor;
-        document.body.style.backgroundColor = preferences.backgroundColor;
-      </script>
-    
+    <script src="js/projector.js"></script>
 </body>
 </html>

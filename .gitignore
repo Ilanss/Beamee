@@ -1,6 +1,4 @@
-library
-library_
-library_old
+renderer/css/output.css
 
 .DS_Store
 
@@ -134,3 +132,7 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# ai tools
+opencode.json
+AGENTS.md

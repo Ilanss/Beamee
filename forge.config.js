@@ -4,12 +4,18 @@ const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 module.exports = {
   packagerConfig: {
     asar: true,
+    icon: process.platform === 'win32'
+      ? 'renderer/img/beamee-icon.ico'
+      : 'renderer/img/beamee-icon.icns',
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
+      platforms: ['win32'],
+      config: {
+        setupIcon: 'renderer/img/beamee-icon.ico',
+      },
     },
     {
       name: '@electron-forge/maker-zip',
@@ -17,10 +23,12 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-deb',
+      platforms: ['linux'],
       config: {},
     },
     {
       name: '@electron-forge/maker-rpm',
+      platforms: ['linux'],
       config: {},
     },
   ],
