@@ -691,10 +691,17 @@ function renderSongHeader() {
 
     if (currentSongData) {
         songNameNode.textContent = currentSongData.name || '';
-        const collection = currentSongData.collections?.[0];
-        songNumberNode.textContent = collection?.number != null && collection?.collectionId
-            ? `${String(collection.collectionId).toUpperCase()} #${collection.number}`
-            : '';
+        songNumberNode.replaceChildren();
+        const collections = currentSongData.collections ?? [];
+        collections.forEach((col, i) => {
+            if (!col?.collectionId) return;
+            if (i > 0) songNumberNode.appendChild(document.createTextNode('  '));
+            const badge = document.createElement('span');
+            badge.textContent = col.number != null
+                ? `${String(col.collectionId).toUpperCase()} #${col.number}`
+                : String(col.collectionId).toUpperCase();
+            songNumberNode.appendChild(badge);
+        });
         return;
     }
 
@@ -1670,9 +1677,9 @@ function createFileList(files, container) {
                 </svg>
             `));
 
-            if (songData.collections[0] !== undefined && songData.collections[0].number !== undefined) {
+            if (file.collectionNumber !== undefined) {
                 const collectionSpan = document.createElement('span');
-                collectionSpan.textContent = '#' + songData.collections[0].number;
+                collectionSpan.textContent = '#' + file.collectionNumber;
                 collectionSpan.className = 'opacity-60';
                 a.appendChild(collectionSpan);
             }
