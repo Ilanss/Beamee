@@ -724,6 +724,61 @@ const saveFavorites = (favorites) => {
     }
 };
 
+const favoriteContainsSongId = (favorites, songId) => {
+    const walk = (items) => {
+        for (const item of Array.isArray(items) ? items : []) {
+            if (!item || typeof item !== 'object') {
+                continue;
+            }
+
+            if (item.id === songId) {
+                return true;
+            }
+
+            if (Array.isArray(item.songs) && walk(item.songs)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    return walk(favorites);
+};
+
+const addSongToFavorites = (songPath) => {
+    ensureLibraryDataLoaded();
+
+    const song = fileController.readFile(songPath);
+
+    if (!song || typeof song !== 'object' || typeof song.id !== 'string') {
+        return { ok: false, error: 'Selected song could not be read.' };
+    }
+
+    const favorites = loadFavorites();
+
+    const nextFavorites = [
+        {
+            id: song.id,
+            path: songPath,
+            name: song.name,
+        },
+        ...favorites,
+    ];
+
+    const result = saveFavorites(nextFavorites);
+
+    if (result.ok) {
+        notifyLibraryChanged();
+    }
+
+    return {
+        ok: result.ok,
+        added: result.ok,
+        error: result.error,
+    };
+};
+
 const pruneFavoritesForDeletedSongs = (favorites, deletedSongIds) => {
     const pruneItem = (item) => {
         if (!item || typeof item !== 'object') {
@@ -885,6 +940,10 @@ const showSongContextMenu = (window, songPath) => {
         };
 
         const menu = Menu.buildFromTemplate([
+            {
+                label: 'Add to Favorites',
+                click: () => finish('add-favorite'),
+            },
             {
                 label: 'Export JSON',
                 click: () => finish('export-json'),
@@ -1544,6 +1603,21 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
                     message: error?.message || 'Unable to export song.',
                 });
             }
+        }
+
+        if (action === 'add-favorite') {
+            const result = addSongToFavorites(item.songPath);
+
+            if (!result.ok) {
+                await dialog.showMessageBox(window, {
+                    type: 'error',
+                    buttons: ['OK'],
+                    title: 'Add to favorites failed',
+                    message: result.error || 'Unable to add song to favorites.',
+                });
+            }
+
+            return result;
         }
 
         if (action === 'delete') {
