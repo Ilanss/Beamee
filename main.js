@@ -363,6 +363,22 @@ const exportLibraryZip = async (window) => {
 
     const songFiles = libraryController.walkLibrarySongFiles(appDataPaths.library);
 
+    return exportSongFilesZip(window, filePath, songFiles);
+};
+
+const normalizeArchiveFolderName = (value) => {
+    const name = String(value ?? '').trim();
+
+    if (!name) {
+        return 'collection';
+    }
+
+    return name.replace(/[<>:"|?*\\/]+/g, '-');
+};
+
+const exportSongFilesZip = async (window, filePath, songFiles, topLevelFolderName = null) => {
+    const entries = Array.isArray(songFiles) ? songFiles : [];
+
     await new Promise((resolve, reject) => {
         const output = fs.createWriteStream(filePath);
         const archive = archiver('zip', { zlib: { level: 9 } });
@@ -373,14 +389,46 @@ const exportLibraryZip = async (window) => {
 
         archive.pipe(output);
 
-        songFiles.forEach((entry) => {
-            archive.file(entry.path, { name: entry.relativePath });
+        entries.forEach((entry) => {
+            const archivePath = topLevelFolderName
+                ? path.posix.join(topLevelFolderName, entry.relativePath)
+                : entry.relativePath;
+
+            archive.file(entry.path, { name: archivePath });
         });
 
         archive.finalize();
     });
 
-    return { ok: true, filePath, count: songFiles.length };
+    return { ok: true, filePath, count: entries.length };
+};
+
+const exportCollectionZip = async (window, collectionId, collectionName) => {
+    ensureLibraryDataLoaded();
+
+    const songFiles = Array.from(libraryState?.songsById?.values() || [])
+        .filter((song) => Array.isArray(song?.collections) && song.collections.some((collection) => collection?.collectionId === collectionId))
+        .map((song) => ({
+            path: song.path,
+            relativePath: path.relative(appDataPaths.library, song.path).split(path.sep).join('/'),
+        }))
+        .filter((entry) => entry.path && entry.relativePath && !entry.relativePath.startsWith('..'));
+
+    if (songFiles.length === 0) {
+        return { ok: false, error: 'No songs were found for that collection.' };
+    }
+
+    const defaultFolderName = normalizeArchiveFolderName(collectionName || collectionId || 'collection');
+    const { canceled, filePath } = await dialog.showSaveDialog(window, {
+        defaultPath: `${defaultFolderName}.zip`,
+        filters: [{ name: 'Zip archive', extensions: ['zip'] }],
+    });
+
+    if (canceled || !filePath) {
+        return { ok: true, canceled: true };
+    }
+
+    return exportSongFilesZip(window, filePath, songFiles, defaultFolderName);
 };
 
 const createImportedSongCopyWithReservedIds = (song, sourcePath, reservedIds) => {
@@ -868,6 +916,10 @@ const showCollectionContextMenu = (window) => {
         };
 
         const menu = Menu.buildFromTemplate([
+            {
+                label: 'Export Collection as Zip',
+                click: () => finish('export-zip'),
+            },
             {
                 label: 'Delete Collection',
                 click: () => finish('delete'),
@@ -1530,6 +1582,21 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
     if (item.kind === 'folder' && typeof item.collectionId === 'string') {
         ensureLibraryDataLoaded();
         const action = await showCollectionContextMenu(window);
+
+        if (action === 'export-zip') {
+            const result = await exportCollectionZip(window, item.collectionId, item.collectionName);
+
+            if (!result.ok && !result.canceled) {
+                await dialog.showMessageBox(window, {
+                    type: 'error',
+                    buttons: ['OK'],
+                    title: 'Export failed',
+                    message: result.error || 'Unable to export collection.',
+                });
+            }
+
+            return result;
+        }
 
         if (action === 'delete') {
             const songsInCollection = Array.from(libraryState?.songsById?.values() || []).filter((song) => (
