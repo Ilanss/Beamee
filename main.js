@@ -676,6 +676,122 @@ const saveFavorites = (favorites) => {
     }
 };
 
+const pruneFavoritesForDeletedSongs = (favorites, deletedSongIds) => {
+    const pruneItem = (item) => {
+        if (!item || typeof item !== 'object') {
+            return null;
+        }
+
+        if (Array.isArray(item.songs)) {
+            return {
+                ...item,
+                songs: item.songs.map(pruneItem).filter(Boolean),
+            };
+        }
+
+        if (typeof item.id === 'string' && deletedSongIds.has(item.id)) {
+            return null;
+        }
+
+        return item;
+    };
+
+    return Array.isArray(favorites) ? favorites.map(pruneItem).filter(Boolean) : [];
+};
+
+const persistFavoritesAfterSongDeletion = (deletedSongIds) => {
+    const favorites = loadFavorites();
+    const cleanedFavorites = pruneFavoritesForDeletedSongs(favorites, deletedSongIds);
+    const result = saveFavorites(cleanedFavorites);
+
+    return {
+        ok: result.ok,
+        error: result.error,
+        favorites: cleanedFavorites,
+    };
+};
+
+const deleteSongFile = (songPath) => {
+    if (!songPath || !fs.existsSync(songPath)) {
+        return false;
+    }
+
+    fs.unlinkSync(songPath);
+    return true;
+};
+
+const removeCollectionFromSong = (song, collectionId) => {
+    const collections = Array.isArray(song.collections) ? song.collections : [];
+    const nextCollections = collections.filter((collection) => collection?.collectionId !== collectionId);
+
+    return {
+        ...song,
+        collections: nextCollections,
+    };
+};
+
+const deleteSongByPath = (songPath) => {
+    ensureLibraryDataLoaded();
+
+    const song = fileController.readFile(songPath);
+
+    if (!song || typeof song !== 'object' || typeof song.id !== 'string') {
+        return { ok: false, error: 'Selected song could not be read.' };
+    }
+
+    deleteSongFile(songPath);
+    const favoritesResult = persistFavoritesAfterSongDeletion(new Set([song.id]));
+    refreshLibraryState();
+    notifyLibraryChanged();
+
+    return favoritesResult.ok
+        ? { ok: true }
+        : { ok: false, error: favoritesResult.error || 'Unable to update favorites.' };
+};
+
+const deleteCollectionById = (collectionId) => {
+    ensureLibraryDataLoaded();
+
+    const songsInCollection = Array.from(libraryState?.songsById?.values() || []).filter((song) => (
+        Array.isArray(song?.collections)
+        && song.collections.some((collection) => collection?.collectionId === collectionId)
+    ));
+
+    if (songsInCollection.length === 0) {
+        return { ok: false, error: 'Selected collection could not be found.' };
+    }
+
+    const deletedSongIds = new Set();
+
+    songsInCollection.forEach((song) => {
+        const nextCollections = Array.isArray(song.collections)
+            ? song.collections.filter((collection) => collection?.collectionId !== collectionId)
+            : [];
+
+        if (nextCollections.length === 0) {
+            deleteSongFile(song.path);
+            deletedSongIds.add(song.id);
+            return;
+        }
+
+        fileController.writeFile(song.path, removeCollectionFromSong(song, collectionId));
+    });
+
+    const favoritesResult = deletedSongIds.size > 0
+        ? persistFavoritesAfterSongDeletion(deletedSongIds)
+        : { ok: true };
+
+    refreshLibraryState();
+    notifyLibraryChanged();
+
+    return {
+        ok: favoritesResult.ok,
+        error: favoritesResult.error,
+        deletedCount: deletedSongIds.size,
+        updatedCount: songsInCollection.length - deletedSongIds.size,
+    };
+};
+
 const showFavoritesContextMenu = (window) => {
     return new Promise((resolve) => {
         let resolved = false;
@@ -723,21 +839,38 @@ const showSongContextMenu = (window, songPath) => {
         const menu = Menu.buildFromTemplate([
             {
                 label: 'Export JSON',
-                click: async () => {
-                    try {
-                        await exportSongJson(window, songPath);
-                    } catch (error) {
-                        console.error('Error exporting song', error);
-                        await dialog.showMessageBox(window, {
-                            type: 'error',
-                            buttons: ['OK'],
-                            title: 'Export failed',
-                            message: error?.message || 'Unable to export song.',
-                        });
-                    } finally {
-                        finish('export-json');
-                    }
-                },
+                click: () => finish('export-json'),
+            },
+            {
+                label: 'Delete Song',
+                click: () => finish('delete'),
+            },
+        ]);
+
+        menu.popup({
+            window,
+            callback: () => finish(null),
+        });
+    });
+};
+
+const showCollectionContextMenu = (window) => {
+    return new Promise((resolve) => {
+        let resolved = false;
+
+        const finish = (action) => {
+            if (resolved) {
+                return;
+            }
+
+            resolved = true;
+            resolve(action);
+        };
+
+        const menu = Menu.buildFromTemplate([
+            {
+                label: 'Delete Collection',
+                click: () => finish('delete'),
             },
         ]);
 
@@ -1335,6 +1468,114 @@ ipcMain.handle('song:context-menu', async (event, songPath) => {
     }
 
     return showSongContextMenu(window, songPath);
+});
+
+ipcMain.handle('library:context-menu', async (event, item = {}) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+
+    if (!window || !item?.kind) {
+        return null;
+    }
+
+    if (item.kind === 'song' && typeof item.songPath === 'string') {
+        const action = await showSongContextMenu(window, item.songPath);
+
+        if (action === 'export-json') {
+            try {
+                await exportSongJson(window, item.songPath);
+            } catch (error) {
+                console.error('Error exporting song', error);
+                await dialog.showMessageBox(window, {
+                    type: 'error',
+                    buttons: ['OK'],
+                    title: 'Export failed',
+                    message: error?.message || 'Unable to export song.',
+                });
+            }
+        }
+
+        if (action === 'delete') {
+            const song = fileController.readFile(item.songPath);
+            const songName = typeof song?.name === 'string' && song.name.trim() ? song.name.trim() : path.basename(item.songPath, path.extname(item.songPath));
+            const { response } = await dialog.showMessageBox(window, {
+                type: 'question',
+                buttons: ['Delete Song', 'Cancel'],
+                defaultId: 1,
+                cancelId: 1,
+                title: 'Delete song?',
+                message: `Delete "${songName}"?`,
+                detail: 'This will remove the song file and any favorites that reference it.',
+                noLink: true,
+            });
+
+            if (response === 0) {
+                const result = deleteSongByPath(item.songPath);
+
+                if (!result.ok) {
+                    await dialog.showMessageBox(window, {
+                        type: 'error',
+                        buttons: ['OK'],
+                        title: 'Delete failed',
+                        message: result.error || 'Unable to delete song.',
+                    });
+                }
+
+                return result;
+            }
+        }
+
+        return action;
+    }
+
+    if (item.kind === 'folder' && typeof item.collectionId === 'string') {
+        ensureLibraryDataLoaded();
+        const action = await showCollectionContextMenu(window);
+
+        if (action === 'delete') {
+            const songsInCollection = Array.from(libraryState?.songsById?.values() || []).filter((song) => (
+                Array.isArray(song?.collections)
+                && song.collections.some((collection) => collection?.collectionId === item.collectionId)
+            ));
+
+            const removableCount = songsInCollection.filter((song) => (
+                Array.isArray(song.collections)
+                && song.collections.filter((collection) => collection?.collectionId !== item.collectionId).length === 0
+            )).length;
+            const retainedCount = songsInCollection.length - removableCount;
+
+            const { response } = await dialog.showMessageBox(window, {
+                type: 'question',
+                buttons: ['Delete Collection', 'Cancel'],
+                defaultId: 1,
+                cancelId: 1,
+                title: 'Delete collection?',
+                message: `Delete collection "${item.collectionName || item.collectionId}"?`,
+                detail: removableCount > 0
+                    ? `${removableCount} song file(s) will be deleted and ${retainedCount} song(s) will stay in other collection(s).`
+                    : 'This collection will be removed from the songs that use it.',
+                noLink: true,
+            });
+
+            if (response === 0) {
+                const result = deleteCollectionById(item.collectionId);
+
+                if (!result.ok) {
+                    await dialog.showMessageBox(window, {
+                        type: 'error',
+                        buttons: ['OK'],
+                        title: 'Delete failed',
+                        message: result.error || 'Unable to delete collection.',
+                    });
+                }
+
+                return result;
+            }
+        }
+
+        return action;
+    }
+
+    return null;
 });
 
 ipcMain.handle('favorites:update', (event, favorites) => {
