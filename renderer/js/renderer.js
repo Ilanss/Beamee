@@ -614,10 +614,12 @@ function renderSongView(songData) {
         li.appendChild(label);
         li.appendChild(text);
         li.setAttribute('id', `verse-${i}`);
-        li.classList.add('bg-base-200', 'p-2', 'px-4', 'pb-3', 'hover:bg-base-300', 'active:bg-base-300', 'rounded-field');
+        li.classList.add('bg-base-200', 'p-2', 'px-4', 'pb-3', 'hover:bg-base-300', 'active:bg-base-300', 'rounded-field', 'cursor-pointer');
 
         li.addEventListener('click', () => {
             currentVerseIndex = i;
+            document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
+            li.classList.add("bg-base-300");
             updateProjection();
         });
 
@@ -1364,6 +1366,7 @@ export async function mount(root, context = {}) {
             previewLyrics.replaceChildren();
         }
 
+        document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
         currentVerseIndex = undefined;
         ipcRenderer.send('black-screen');
     });
@@ -2409,14 +2412,18 @@ function updateProjection() {
 
 function changeToPrevVerse() {
     if (currentVerseIndex !== undefined && currentVerseIndex > 0) {
+        document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
         currentVerseIndex--;
+        document.querySelector("#verse-" + currentVerseIndex).classList.add("bg-base-300");
         updateProjection();
     }
 }
 
 function changeToNextVerse() {
     if (currentVerseIndex !== undefined && Array.isArray(currentLyrics) && currentVerseIndex < currentLyrics.length - 1) {
+        document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
         currentVerseIndex++;
+        document.querySelector("#verse-" + currentVerseIndex).classList.add("bg-base-300");
         updateProjection();
     }
 }
