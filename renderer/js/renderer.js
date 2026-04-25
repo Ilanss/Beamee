@@ -137,6 +137,45 @@ function appendTextWithLineBreaks(parent, value) {
     });
 }
 
+function getCurrentProjectedVerse() {
+    if (currentVerseIndex === undefined || !Array.isArray(currentLyrics)) {
+        return null;
+    }
+
+    const verse = currentLyrics[currentVerseIndex];
+
+    if (!verse) {
+        return null;
+    }
+
+    return {
+        id: verse.id,
+        type: verse.type,
+        label: verse.label,
+        text: verse.text,
+    };
+}
+
+function findProjectedVerseIndex(lyrics, projectedVerse) {
+    if (!Array.isArray(lyrics) || !projectedVerse) {
+        return -1;
+    }
+
+    if (projectedVerse.id) {
+        const byId = lyrics.findIndex((verse) => verse?.id === projectedVerse.id);
+
+        if (byId !== -1) {
+            return byId;
+        }
+    }
+
+    return lyrics.findIndex((verse) => (
+        verse?.text === projectedVerse.text
+        && verse?.type === projectedVerse.type
+        && verse?.label === projectedVerse.label
+    ));
+}
+
 function createIconSpan(svgMarkup) {
     const icon = document.createElement('span');
     icon.innerHTML = svgMarkup;
@@ -1288,7 +1327,7 @@ export async function mount(root, context = {}) {
         }
 
         if (currentSongPath && previousUseArrangement !== currentUseArrangement && !isSongEditing) {
-            renderCurrentSong();
+            renderCurrentSong(true);
             return;
         }
 
@@ -1380,7 +1419,7 @@ export async function mount(root, context = {}) {
         });
 
         if (currentSongPath && !isSongEditing) {
-            renderCurrentSong();
+            renderCurrentSong(true);
             return;
         }
 
@@ -1480,12 +1519,23 @@ export async function mount(root, context = {}) {
     }
 }
 
-function renderCurrentSong() {
+function renderCurrentSong(preserveProjection = false) {
     if (!currentSongPath) {
         return;
     }
 
+    const projectedVerse = preserveProjection ? getCurrentProjectedVerse() : null;
+
     loadSong(currentSongPath);
+
+    if (projectedVerse) {
+        const projectedVerseIndex = findProjectedVerseIndex(currentLyrics, projectedVerse);
+
+        if (projectedVerseIndex !== -1) {
+            currentVerseIndex = projectedVerseIndex;
+            updateProjection();
+        }
+    }
 }
 
 export async function unmount() {
