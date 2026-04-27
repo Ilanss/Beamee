@@ -59,8 +59,8 @@
   "settings.appearance.systemDesc": "Suivre la préférence du système",
 
   "settings.about.title": "À propos de Beamee",
-  "settings.about.description1": "Beamee est une application open source de projection de paroles de chansons créée avec des technologies web. Elle est multiplateforme par nature.",
-  "settings.about.description2": "La philosophie est de durer dans le temps sans être surchargée. L'application est simple, elle ne fait pas tout mais fait bien ce qu'elle peut.",
+  "settings.about.description1": "Beamee est une app open source pour projeter des paroles de chansons — construite avec des technologies web, donc elle tourne partout.",
+  "settings.about.description2": "L'idée : rester léger et durer dans le temps. Pas de fonctionnalités superflues — juste l'essentiel, bien fait.",
   "settings.about.github": "Voir le projet sur GitHub",
   "settings.about.kofi": "Me soutenir sur Ko-fi",
   "settings.about.restoreDefaults": "Restaurer les valeurs par défaut",
