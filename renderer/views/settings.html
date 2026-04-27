@@ -1,7 +1,7 @@
 <div class="wrapper h-full">
   <div class="sidebar menu w-full flex flex-col min-h-0 bg-base-200">
     <img src="img/beamee-logo.png" alt="" class="object-contain h-10 object-left">
-    <li class="menu-title">Preferences</li>
+    <li class="menu-title" data-i18n="settings.title">Preferences</li>
     <li data-settings-id="settings-general">
       <a>
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
@@ -10,7 +10,7 @@
             d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         </svg>
-        General
+        <span data-i18n="settings.nav.general">General</span>
       </a>
     </li>
 
@@ -21,8 +21,7 @@
           <path stroke-linecap="round" stroke-linejoin="round"
             d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
         </svg>
-
-        Projection
+        <span data-i18n="settings.nav.projection">Projection</span>
       </a>
     </li>
 
@@ -33,8 +32,7 @@
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M4.098 19.902a3.75 3.75 0 0 0 5.304 0l6.401-6.402M6.75 21A3.75 3.75 0 0 1 3 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 0 0 3.75-3.75V8.197M6.75 21h13.125c.621 0 1.125-.504 1.125-1.125v-5.25c0-.621-.504-1.125-1.125-1.125h-4.072M10.5 8.197l2.88-2.88c.438-.439 1.15-.439 1.59 0l3.712 3.713c.44.44.44 1.152 0 1.59l-2.879 2.88M6.75 17.25h.008v.008H6.75v-.008Z" />
         </svg>
-
-        Appearence
+        <span data-i18n="settings.nav.appearance">Appearance</span>
       </a>
     </li>
 
@@ -45,34 +43,43 @@
           <path stroke-linecap="round" stroke-linejoin="round"
             d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
         </svg>
-
-        About
+        <span data-i18n="settings.nav.about">About</span>
       </a>
     </li>
   </div>
 
-<!-- GENERAL -->
+  <!-- GENERAL -->
 
   <section id="settings-general" class="menu-page h-full overflow-auto px-4 py-5 sm:px-6" hidden>
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-xl font-semibold">General</h2>
+        <h2 class="text-xl font-semibold" data-i18n="settings.general.title">General</h2>
       </div>
     </div>
 
+    <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border p-4 mb-2">
+      <legend class="fieldset-legend" data-i18n="settings.general.language.legend">Language</legend>
+      <label class="label" data-i18n="settings.general.language.label">App Language</label>
+      <select id="app-language" name="app-language" class="select w-full">
+        <option value="system" data-i18n="lang.system">System (auto-detect)</option>
+        <option value="en" data-i18n="lang.en">English</option>
+        <option value="fr" data-i18n="lang.fr">French</option>
+      </select>
+    </fieldset>
+
     <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border p-4">
-      <legend class="fieldset-legend">Updates</legend>
+      <legend class="fieldset-legend" data-i18n="settings.general.updates.legend">Updates</legend>
       <div class="flex items-center justify-between gap-4">
         <div>
-          <p class="text-sm">Current version: <span id="app-version"></span></p>
+          <p class="text-sm"><span data-i18n="settings.general.updates.currentVersion">Current version:</span> <span id="app-version"></span></p>
           <p id="update-status" class="text-sm mt-1" aria-live="polite"></p>
         </div>
-        <button id="check-for-update" type="button" class="btn btn-primary">Check for update...</button>
+        <button id="check-for-update" type="button" class="btn btn-primary" data-i18n="settings.general.updates.checkButton">Check for update...</button>
       </div>
       <progress id="update-progress" class="progress w-full mt-3" value="0" max="100" hidden></progress>
       <div class="flex gap-2 mt-2">
-        <button id="download-update" type="button" class="btn btn-secondary" hidden>Download update</button>
-        <button id="install-update" type="button" class="btn btn-success" hidden>Install &amp; Restart</button>
+        <button id="download-update" type="button" class="btn btn-secondary" hidden data-i18n="settings.general.updates.downloadButton">Download update</button>
+        <button id="install-update" type="button" class="btn btn-success" hidden data-i18n="settings.general.updates.installButton">Install &amp; Restart</button>
       </div>
     </fieldset>
 
@@ -80,33 +87,33 @@
     <p id="preferences-status" class="mt-3 min-h-5" aria-live="polite"></p>
   </section>
 
-<!-- PROJECTION -->
+  <!-- PROJECTION -->
 
   <section id="settings-projection" class="menu-page h-full overflow-auto px-4 py-5 sm:px-6">
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
         <!-- <p class="text-sm uppercase tracking-wide">App</p> -->
-        <h2 class="text-xl font-semibold">Projection</h2>
+        <h2 class="text-xl font-semibold" data-i18n="settings.projection.title">Projection</h2>
       </div>
     </div>
 
     <form id="preferences-form" class="grid gap-2">
       <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border p-4">
 
-        <legend class="fieldset-legend">Font</legend>
-        <label class="label">Font Family</label>
+        <legend class="fieldset-legend" data-i18n="settings.projection.font.legend">Font</legend>
+        <label class="label" data-i18n="settings.projection.font.family">Font Family</label>
         <select id="font-family" name="font-family" class="select w-full">
-          <option disabled selected>Pick a font</option>
+          <option disabled selected data-i18n="settings.projection.font.familyPlaceholder">Pick a font</option>
         </select>
 
         <fieldset class="fieldset md:flex">
           <div class="flex-1">
-            <label class="label">Font Size</label>
+            <label class="label" data-i18n="settings.projection.font.size">Font Size</label>
             <input type="number" id="font-size" name="font-size" min="10" max="200" class="input w-full">
           </div>
 
           <div class="flex-1">
-            <label class="label">Line Height</label>
+            <label class="label" data-i18n="settings.projection.font.lineHeight">Line Height</label>
             <input type="number" id="line-height" name="line-height" min="0.5" max="3" step="0.1" class="input w-full">
           </div>
         </fieldset>
@@ -115,9 +122,9 @@
 
 
       <fieldset class="fieldset md:flex bg-base-200 border-base-300 rounded-box border p-4">
-        <legend class="fieldset-legend">Colors</legend>
+        <legend class="fieldset-legend" data-i18n="settings.projection.colors.legend">Colors</legend>
         <div class="flex-1">
-          <label for="text-color" class="label">Text Color</label>
+          <label for="text-color" class="label" data-i18n="settings.projection.colors.text">Text Color</label>
           <div class="relative">
             <button type="button" data-color-trigger="text-color"
               class="input flex w-full items-center gap-3 text-left">
@@ -128,7 +135,7 @@
           </div>
         </div>
         <div class="flex-1">
-          <label for="background-color" class="label">Background Color</label>
+          <label for="background-color" class="label" data-i18n="settings.projection.colors.background">Background Color</label>
           <div class="relative">
             <button type="button" data-color-trigger="background-color"
               class="input flex w-full items-center gap-3 text-left">
@@ -141,32 +148,32 @@
       </fieldset>
 
       <fieldset class="fieldset bg-base-200 border-base-300 rounded-box border p-4">
-        <legend class="fieldset-legend">Background image</legend>
+        <legend class="fieldset-legend" data-i18n="settings.projection.backgroundImage.legend">Background image</legend>
         <div class="mb-2 flex items-center justify-between gap-3">
-          <span id="background-image-name" class="text-sm opacity-50">No image set</span>
-          <button type="button" id="remove-background-image" class="btn btn-sm btn-error" hidden>Remove</button>
+          <span id="background-image-name" class="text-sm opacity-50" data-i18n="settings.projection.backgroundImage.noImage">No image set</span>
+          <button type="button" id="remove-background-image" class="btn btn-sm btn-error" hidden data-i18n="settings.projection.backgroundImage.remove">Remove</button>
         </div>
-        <button type="button" id="background-image" class="btn btn-outline w-full">Choose image...</button>
+        <button type="button" id="background-image" class="btn btn-outline w-full" data-i18n="settings.projection.backgroundImage.choose">Choose image...</button>
       </fieldset>
 
       <fieldset class="fieldset md:flex bg-base-200 border-base-300 rounded-box border p-4">
-        <legend class="fieldset-legend">Paddings</legend>
+        <legend class="fieldset-legend" data-i18n="settings.projection.paddings.legend">Paddings</legend>
 
         <div class="flex-1">
-          <label for="padding-top" class="label pb-1">Padding Top</label>
+          <label for="padding-top" class="label pb-1" data-i18n="settings.projection.paddings.top">Padding Top</label>
           <input type="number" id="padding-top" name="padding-top" min="0" max="200" class="input w-full">
         </div>
         <div class="flex-1">
-          <label for="padding-bottom" class="label pb-1">Padding Bottom</label>
+          <label for="padding-bottom" class="label pb-1" data-i18n="settings.projection.paddings.bottom">Padding Bottom</label>
           <input type="number" id="padding-bottom" name="padding-bottom" min="0" max="200" class="input w-full">
         </div>
 
         <div class="flex-1">
-          <label for="padding-left" class="label pb-1">Padding Left</label>
+          <label for="padding-left" class="label pb-1" data-i18n="settings.projection.paddings.left">Padding Left</label>
           <input type="number" id="padding-left" name="padding-left" min="0" max="200" class="input w-full">
         </div>
         <div class="flex-1">
-          <label for="padding-right" class="label pb-1">Padding Right</label>
+          <label for="padding-right" class="label pb-1" data-i18n="settings.projection.paddings.right">Padding Right</label>
           <input type="number" id="padding-right" name="padding-right" min="0" max="200" class="input w-full">
         </div>
 
@@ -176,26 +183,26 @@
     <p id="preferences-status" class="mt-3 min-h-5" aria-live="polite"></p>
   </section>
 
-<!-- APPEARENCE -->
+  <!-- APPEARENCE -->
 
   <section id="settings-appearence" class="menu-page h-full overflow-auto px-4 py-5 sm:px-6" hidden>
     <div class="mb-4 flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-xl font-semibold">Appearence</h2>
+        <h2 class="text-xl font-semibold" data-i18n="settings.appearance.title">Appearance</h2>
       </div>
     </div>
-        <div class="mb-4">
-          <div
-            class="border-base-content/20 hover:border-base-content/40 inline-flex items-center gap-3 overflow-hidden rounded-lg border px-4 py-3 outline-2 outline-transparent cursor-pointer"
-            data-act-class="outline-base-content!" data-set-theme="system">
-            <div>
-              <div class="font-bold text-sm">System</div>
-              <div class="text-xs opacity-60">Follow OS preference</div>
-            </div>
-          </div>
+    <div class="mb-4">
+      <div
+        class="border-base-content/20 hover:border-base-content/40 inline-flex items-center gap-3 overflow-hidden rounded-lg border px-4 py-3 outline-2 outline-transparent cursor-pointer"
+        data-act-class="outline-base-content!" data-set-theme="system">
+        <div>
+          <div class="font-bold text-sm" data-i18n="settings.appearance.system">System</div>
+          <div class="text-xs opacity-60" data-i18n="settings.appearance.systemDesc">Follow OS preference</div>
         </div>
+      </div>
+    </div>
 
-        <div class=" rounded-box grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+    <div class=" rounded-box grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       <div
         class="border-base-content/20 hover:border-base-content/40 overflow-hidden rounded-lg border outline-2 outline-transparent outline-base-content!"
         data-act-class="outline-base-content!" data-set-theme="light">
@@ -1144,23 +1151,21 @@
     </div>
   </section>
 
-<!-- ABOUT -->
+  <!-- ABOUT -->
 
   <section id="settings-about" class="menu-page h-full overflow-auto px-4 py-5 sm:px-6" hidden>
     <div class="mb-4 flex items-center justify-between gap-3">
       <div class="prose">
-        <h2 class="text-xl font-semibold">About Beamee</h2>
-        <p>Beamee is an opensource song lyrics projection app created with web technologies. It's cross-plateform by
-          nature.</p>
-        <p>The philosophy is to last in time without being bloated. The app is simple, it doesn't do everything but does
-          what it can well.</p>
+        <h2 class="text-xl font-semibold" data-i18n="settings.about.title">About Beamee</h2>
+        <p data-i18n="settings.about.description1">Beamee is an opensource song lyrics projection app created with web technologies. It's cross-platform by nature.</p>
+        <p data-i18n="settings.about.description2">The philosophy is to last in time without being bloated. The app is simple, it doesn't do everything but does what it can well.</p>
         <button id="btn-github" class="btn bg-black text-white border-black">
           <svg aria-label="GitHub logo" width="16" height="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <path fill="white"
               d="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z">
             </path>
           </svg>
-          See project on GitHub
+          <span data-i18n="settings.about.github">See project on GitHub</span>
         </button>
 
         <button id="btn-kofi" class="btn text-white" style="background-color: #FF6433; border-color: #FF6433;">
@@ -1190,7 +1195,7 @@
                 fill="#FF5A16" />
             </g>
           </svg>
-          Support me on Ko-fi
+          <span data-i18n="settings.about.kofi">Support me on Ko-fi</span>
         </button>
       </div>
     </div>
@@ -1209,9 +1214,9 @@
 
     </button>
     <div class="flex flex-col justify-end gap-2 pt-1">
-      <button type="button" id="restore-defaults" class="btn btn-secondary">Restore Defaults</button>
-      <button type="reset" class="btn btn-warning">Reset</button>
-      <button type="button" id="save-preferences" class="btn btn-primary">Save Preferences</button>
+      <button type="button" id="restore-defaults" class="btn btn-secondary" data-i18n="settings.about.restoreDefaults">Restore Defaults</button>
+      <button type="reset" class="btn btn-warning" data-i18n="settings.projection.save">Save</button>
+      <button type="button" id="save-preferences" class="btn btn-primary" data-i18n="settings.projection.save">Save</button>
     </div>
 
   </div>
