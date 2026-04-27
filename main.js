@@ -1502,6 +1502,17 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                     accelerator: 'CmdOrCtrl+P'
                 },
                 {
+                    label: 'Stop projection',
+                    visible: false,
+                    acceleratorWorksWhenHidden: true,
+                    click: () => {
+                        if (isProjectionOn) {
+                            projectorWindow.close();
+                        }
+                    },
+                    accelerator: 'Escape'
+                },
+                {
                     label: t('menu.nextVerse'),
                     click: () => { mainWindow.webContents.send('projection:next'); },
                     accelerator: 'n'
