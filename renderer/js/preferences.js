@@ -131,8 +131,8 @@ const setDirty = (value) => {
     return;
   }
 
-  saveButton.classList.toggle('btn-warning', value);
-  saveButton.classList.toggle('btn-primary', !value);
+  saveButton.classList.toggle('btn-primary', value);
+  saveButton.classList.toggle('btn-disabled', !value);
 };
 
 // Shows or hides the Save and Restore Defaults buttons depending on whether the
