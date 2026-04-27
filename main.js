@@ -1837,6 +1837,25 @@ ipcMain.handle('restore-preferences', () => {
     }
 });
 
+ipcMain.handle('restore-projection-defaults', () => {
+    try {
+        // Clean up background image file, then restore only projection keys.
+        // theme and useArrangement are left untouched.
+        cleanOldBackgroundImages(null);
+        const {
+            fontFamily, fontSize, textColor, backgroundColor, backgroundImage,
+            lineHeight, paddingTop, paddingBottom, paddingLeft, paddingRight,
+        } = DEFAULT_PREFERENCES;
+        return savePreferences({
+            fontFamily, fontSize, textColor, backgroundColor, backgroundImage,
+            lineHeight, paddingTop, paddingBottom, paddingLeft, paddingRight,
+        });
+    } catch (error) {
+        console.error('Error restoring projection defaults', error);
+        throw error;
+    }
+});
+
 ipcMain.handle('get-preferences', () => {
     return { ...loadPreferences(), osLocale: app.getLocale() };
 });
