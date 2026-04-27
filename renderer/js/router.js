@@ -1,4 +1,5 @@
 import { resolveTheme } from './themeUtils.js';
+import { loadLocale, resolveLanguage } from './i18n.js';
 
 const ROUTES = {
   library: {
@@ -187,14 +188,19 @@ window.addEventListener('hashchange', () => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-  // Apply the saved theme before the first view renders to avoid a flash.
+  // Apply the saved theme and language before the first view renders to avoid
+  // a visible flash of English/default content on non-English systems.
   ipcRenderer.invoke('get-preferences').then((preferences) => {
     const theme = preferences?.theme;
     if (typeof theme === 'string' && theme) {
       document.documentElement.setAttribute('data-theme', resolveTheme(theme));
     }
+
+    const lang = resolveLanguage(preferences?.language, preferences?.osLocale);
+    loadLocale(lang);
   }).catch(() => {
-    // Silently fall back to the CSS default if preferences cannot be read.
+    // Silently fall back to the default locale if preferences cannot be read.
+    loadLocale('en');
   });
 
   if (!window.location.hash) {

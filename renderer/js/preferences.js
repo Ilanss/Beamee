@@ -1,4 +1,5 @@
 import { resolveTheme } from './themeUtils.js';
+import { loadLocale, resolveLanguage, applyTranslations, t } from './i18n.js';
 
 let rootElement = null;
 let fontSelect = null;
@@ -36,6 +37,7 @@ let currentMenuPage = 'settings-projection';
 let isDirty = false;
 const cleanupTasks = [];
 let mountContext = null;
+let languageSelect = null;
 
 // Pages that have saveable settings and should show the action buttons.
 const PAGES_WITH_ACTIONS = new Set(['settings-projection', 'settings-appearence']);
@@ -284,7 +286,7 @@ const applyBackgroundImageToForm = (backgroundImage) => {
   const hasImage = typeof backgroundImage === 'string' && backgroundImage.trim();
 
   if (backgroundImageNameEl) {
-    backgroundImageNameEl.textContent = hasImage ? backgroundImage : 'No image set';
+    backgroundImageNameEl.textContent = hasImage ? backgroundImage : t('settings.projection.backgroundImage.noImage');
     backgroundImageNameEl.classList.toggle('opacity-50', !hasImage);
   }
 
@@ -301,7 +303,7 @@ const bindBackgroundImageField = () => {
   if (backgroundImageButton) {
     on(backgroundImageButton, 'click', async () => {
       try {
-        showStatus('Opening file picker...');
+        showStatus(t('settings.projection.backgroundImage.opening'));
         // Returns null if the user cancelled, or the updated preferences object.
         const preferences = await ipcRenderer.invoke('preferences:pick-background-image');
 
@@ -315,11 +317,11 @@ const bindBackgroundImageField = () => {
         }
 
         applyPreferencesToForm(preferences);
-        showStatus('Background image saved.');
+        showStatus(t('settings.projection.backgroundImage.saved'));
       } catch (error) {
         console.error('Failed to set background image', error);
         if (isMountCurrent()) {
-          showStatus('Failed to save background image.', true);
+          showStatus(t('settings.projection.backgroundImage.saveFailed'), true);
         }
       }
     });
@@ -328,17 +330,17 @@ const bindBackgroundImageField = () => {
   if (removeBackgroundImageButton) {
     on(removeBackgroundImageButton, 'click', async () => {
       try {
-        showStatus('Removing image...');
+        showStatus(t('settings.projection.backgroundImage.opening'));
         const preferences = await ipcRenderer.invoke('preferences:remove-background-image');
 
         if (isMountCurrent()) {
           applyPreferencesToForm(preferences);
-          showStatus('Background image removed.');
+          showStatus(t('settings.projection.backgroundImage.removed'));
         }
       } catch (error) {
         console.error('Failed to remove background image', error);
         if (isMountCurrent()) {
-          showStatus('Failed to remove background image.', true);
+          showStatus(t('settings.projection.backgroundImage.removeFailed'), true);
         }
       }
     });
@@ -351,6 +353,10 @@ const applyPreferencesToForm = (preferences) => {
   }
 
   currentPreferences = preferences;
+
+  if (languageSelect && preferences.language) {
+    languageSelect.value = preferences.language;
+  }
 
   populateFontOptions(availableFonts);
   addFontOption(preferences.fontFamily);
@@ -396,12 +402,13 @@ const readProjectionPreferences = () => ({
 // Reads only the Appearance page fields.
 const readAppearencePreferences = () => ({
   theme: selectedTheme || currentPreferences?.theme || 'light',
+  language: languageSelect?.value || currentPreferences?.language || 'system',
 });
 
 // Saves only the settings belonging to the currently active page.
 const savePreferencesFromForm = async () => {
   try {
-    showStatus('Saving...');
+    showStatus(t('settings.projection.saving'));
 
     const payload = currentMenuPage === 'settings-appearence'
       ? readAppearencePreferences()
@@ -418,10 +425,10 @@ const savePreferencesFromForm = async () => {
       }
     }
 
-    showStatus('Preferences saved.');
+    showStatus(t('settings.projection.saved'));
   } catch (error) {
     console.error('Failed to save preferences', error);
-    showStatus('Failed to save preferences.', true);
+    showStatus(t('settings.projection.saveFailed'), true);
   }
 };
 
@@ -438,6 +445,12 @@ export async function mount(root, context = {}) {
   saveButton = rootElement.querySelector('#save-preferences');
   restoreDefaultsButton = rootElement.querySelector('#restore-defaults');
   resetButton = rootElement.querySelector('#reset-preferences');
+  statusElement = rootElement.querySelector('#preferences-status');
+  languageSelect = rootElement.querySelector('#app-language');
+
+  // Apply translations to the static HTML immediately so the UI is in the
+  // correct language even before preferences are loaded from disk.
+  applyTranslations(rootElement);
 
   on(rootElement.querySelector('.menu'), 'click', (e) => {
     const item = e.target.closest('li[data-settings-id]');
@@ -476,6 +489,36 @@ export async function mount(root, context = {}) {
 
   colorFieldIds.forEach(bindColorField);
   bindBackgroundImageField();
+
+  // Language select — save immediately on change and re-navigate to re-render
+  // the entire view in the new language (mirrors how theme switching works).
+  if (languageSelect) {
+    on(languageSelect, 'change', async () => {
+      const newLang = languageSelect.value;
+      try {
+        const updated = await ipcRenderer.invoke('save-preferences', {
+          ...readPreferencesFromForm(),
+          language: newLang,
+        });
+
+        if (!isMountCurrent()) {
+          return;
+        }
+
+        // Reload the locale catalogue then re-apply all translations in the
+        // live DOM immediately — no navigation needed since the module is
+        // already mounted and applyTranslations walks the whole subtree.
+        const resolvedLang = resolveLanguage(newLang, updated?.osLocale ?? '');
+        loadLocale(resolvedLang);
+        applyTranslations(rootElement);
+
+        // Re-apply background image text which uses t() at runtime.
+        applyBackgroundImageToForm(currentPreferences?.backgroundImage ?? null);
+      } catch (error) {
+        console.error('Failed to save language preference', error);
+      }
+    });
+  }
 
   on(rootElement.querySelector('#settings-appearence'), 'click', (e) => {
     const card = e.target.closest('[data-set-theme]');
@@ -548,28 +591,28 @@ export async function mount(root, context = {}) {
   onIpc('updater:status', (_, { event, version, percent, message } = {}) => {
     switch (event) {
       case 'checking':
-        setUpdateStatus('Checking for updates...');
+        setUpdateStatus(t('settings.general.updates.checking'));
         setUpdateControls({ downloading: true });
         break;
       case 'not-available':
-        setUpdateStatus("You're up to date.");
+        setUpdateStatus(t('settings.general.updates.upToDate'));
         setUpdateControls();
         break;
       case 'available':
-        setUpdateStatus(`Update v${version} available.`);
+        setUpdateStatus(t('settings.general.updates.available', { version }));
         setUpdateControls({ available: true });
         break;
       case 'progress':
-        setUpdateStatus(`Downloading... ${percent}%`);
+        setUpdateStatus(t('settings.general.updates.downloading', { percent }));
         setUpdateControls({ downloading: true });
         if (updateProgressEl) updateProgressEl.value = percent ?? 0;
         break;
       case 'downloaded':
-        setUpdateStatus('Update ready to install.');
+        setUpdateStatus(t('settings.general.updates.ready'));
         setUpdateControls({ downloaded: true });
         break;
       case 'error':
-        setUpdateStatus(`Update check failed.${message ? ' ' + message : ''}`);
+        setUpdateStatus(t('settings.general.updates.error') + (message ? ' ' + message : ''));
         setUpdateControls();
         break;
     }
@@ -650,7 +693,7 @@ export async function mount(root, context = {}) {
 
   on(restoreDefaultsButton, 'click', async () => {
     try {
-      showStatus('Restoring defaults...');
+      showStatus(t('settings.about.restoring'));
       let preferences;
 
       if (currentMenuPage === 'settings-appearence') {
@@ -666,10 +709,10 @@ export async function mount(root, context = {}) {
         setDirty(false);
       }
 
-      showStatus('Defaults restored.');
+      showStatus(t('settings.about.restored'));
     } catch (error) {
       console.error('Failed to restore default preferences', error);
-      showStatus('Failed to restore defaults.', true);
+      showStatus(t('settings.about.restoreFailed'), true);
     }
   });
 
@@ -689,6 +732,9 @@ export async function mount(root, context = {}) {
     }
 
     applyPreferencesToForm(preferences);
+    // Re-apply translations after preferences are loaded so any keys that
+    // depend on the loaded language are up to date.
+    applyTranslations(rootElement);
     showStatus('');
   } catch (error) {
     if (!isMountCurrent()) {
@@ -696,7 +742,7 @@ export async function mount(root, context = {}) {
     }
 
     console.error('Failed to load preferences', error);
-    showStatus('Failed to load preferences.', true);
+    showStatus(t('settings.projection.loadFailed'), true);
   }
 
   // Set initial action bar state based on the default active page.
@@ -736,4 +782,5 @@ export async function unmount() {
   selectedTheme = null;
   currentMenuPage = 'settings-projection';
   isDirty = false;
+  languageSelect = null;
 }
