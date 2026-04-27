@@ -201,14 +201,14 @@ window.addEventListener('DOMContentLoaded', () => {
   }).catch(() => {
     // Silently fall back to the default locale if preferences cannot be read.
     loadLocale('en');
+  }).finally(() => {
+    if (!window.location.hash) {
+      navigate('library', { replace: true });
+      return;
+    }
+
+    renderRoute(normalizeRoute(window.location.hash));
   });
-
-  if (!window.location.hash) {
-    navigate('library', { replace: true });
-    return;
-  }
-
-  renderRoute(normalizeRoute(window.location.hash));
 });
 
 

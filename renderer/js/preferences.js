@@ -445,7 +445,6 @@ export async function mount(root, context = {}) {
   saveButton = rootElement.querySelector('#save-preferences');
   restoreDefaultsButton = rootElement.querySelector('#restore-defaults');
   resetButton = rootElement.querySelector('#reset-preferences');
-  statusElement = rootElement.querySelector('#preferences-status');
   languageSelect = rootElement.querySelector('#app-language');
 
   // Apply translations to the static HTML immediately so the UI is in the
@@ -497,7 +496,7 @@ export async function mount(root, context = {}) {
       const newLang = languageSelect.value;
       try {
         const updated = await ipcRenderer.invoke('save-preferences', {
-          ...readPreferencesFromForm(),
+          ...readAppearencePreferences(),
           language: newLang,
         });
 

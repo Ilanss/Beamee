@@ -64,6 +64,7 @@
   "settings.about.github": "Voir le projet sur GitHub",
   "settings.about.kofi": "Me soutenir sur Ko-fi",
   "settings.about.restoreDefaults": "Restaurer les valeurs par défaut",
+  "settings.projection.reset": "Restaurer",
   "settings.about.restoring": "Restauration en cours...",
   "settings.about.restored": "Valeurs par défaut restaurées.",
   "settings.about.restoreFailed": "Échec de la restauration des valeurs par défaut.",
