@@ -1366,7 +1366,7 @@ export async function mount(root, context = {}) {
             }
 
             if (currentSongPath && !isSongEditing) {
-                loadSong(currentSongPath);
+                renderCurrentSong(true);
             }
         } catch (error) {
             console.warn('Failed to refresh library view', error);
@@ -1712,6 +1712,8 @@ function createFileList(files, container) {
 
             const ul = document.createElement('ul');
             li.dataset.libraryKind = 'folder';
+            li.dataset.libraryName = file.name;
+            li.dataset.collectionId = file.collectionId ?? '';
             details.appendChild(summary);
             details.appendChild(ul);
             details.dataset.collectionId = file.collectionId ?? '';
@@ -1725,6 +1727,7 @@ function createFileList(files, container) {
             const songData = JSON.parse(window.fs.readFileSync(file.path, 'utf8'));
             li.dataset.libraryKind = 'song';
             li.dataset.librarySearchText = buildSongSearchText(songData, file.name);
+            li.dataset.songName = songData.name;
             a.appendChild(createIconSpan(`
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-4 w-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
@@ -1937,15 +1940,20 @@ function handleFavoriteSongContextMenu(event) {
 }
 
 function handleSongContextMenu(event) {
-    const item = event.target.closest('li[data-song-path]');
+    const item = event.target.closest('li[data-library-kind]');
 
-    if (!item || !(libraryListContainer?.contains(item) || favoritesListRoot?.contains(item))) {
+    if (!item || !libraryListContainer?.contains(item)) {
         return;
     }
 
     event.preventDefault();
 
-    ipcRenderer.invoke('song:context-menu', item.dataset.songPath)
+    ipcRenderer.invoke('library:context-menu', {
+        kind: item.dataset.libraryKind,
+        songPath: item.dataset.songPath,
+        collectionId: item.dataset.collectionId || item.querySelector('details')?.dataset.collectionId || '',
+        collectionName: item.dataset.libraryName || item.querySelector('summary')?.textContent?.trim() || '',
+    })
         .catch(() => { });
 }
 
