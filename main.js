@@ -8,6 +8,7 @@ const libraryController = require('./assets/js/libraryController.js');
 const fileController = require('./assets/js/fileController.js');
 const songSchema = require('./assets/js/songSchema.js');
 const { DEFAULT_PREFERENCES, mergePreferences, normalizePreferences } = require('./assets/js/preferencesStore.js');
+const { getTranslator } = require('./assets/js/mainTranslations.js');
 
 const isDev = !app.isPackaged;
 
@@ -896,6 +897,7 @@ const deleteCollectionById = (collectionId) => {
 };
 
 const showFavoritesContextMenu = (window) => {
+    const t = getTranslator(getAppLanguage());
     return new Promise((resolve) => {
         let resolved = false;
 
@@ -910,11 +912,11 @@ const showFavoritesContextMenu = (window) => {
 
         const menu = Menu.buildFromTemplate([
             {
-                label: 'Rename',
+                label: t('contextMenu.rename'),
                 click: () => finish('rename'),
             },
             {
-                label: 'Delete',
+                label: t('contextMenu.delete'),
                 click: () => finish('delete'),
             },
         ]);
@@ -927,6 +929,7 @@ const showFavoritesContextMenu = (window) => {
 };
 
 const showSongContextMenu = (window, songPath) => {
+    const t = getTranslator(getAppLanguage());
     return new Promise((resolve) => {
         let resolved = false;
 
@@ -941,15 +944,15 @@ const showSongContextMenu = (window, songPath) => {
 
         const menu = Menu.buildFromTemplate([
             {
-                label: 'Add to Favorites',
+                label: t('contextMenu.addToFavorites'),
                 click: () => finish('add-favorite'),
             },
             {
-                label: 'Export JSON',
+                label: t('contextMenu.exportJson'),
                 click: () => finish('export-json'),
             },
             {
-                label: 'Delete Song',
+                label: t('contextMenu.deleteSong'),
                 click: () => finish('delete'),
             },
         ]);
@@ -962,6 +965,7 @@ const showSongContextMenu = (window, songPath) => {
 };
 
 const showCollectionContextMenu = (window) => {
+    const t = getTranslator(getAppLanguage());
     return new Promise((resolve) => {
         let resolved = false;
 
@@ -976,11 +980,11 @@ const showCollectionContextMenu = (window) => {
 
         const menu = Menu.buildFromTemplate([
             {
-                label: 'Export Collection as Zip',
+                label: t('contextMenu.exportCollectionZip'),
                 click: () => finish('export-zip'),
             },
             {
-                label: 'Delete Collection',
+                label: t('contextMenu.deleteCollection'),
                 click: () => finish('delete'),
             },
         ]);
@@ -993,6 +997,7 @@ const showCollectionContextMenu = (window) => {
 };
 
 const showFavoriteSongContextMenu = (window) => {
+    const t = getTranslator(getAppLanguage());
     return new Promise((resolve) => {
         let resolved = false;
 
@@ -1007,7 +1012,7 @@ const showFavoriteSongContextMenu = (window) => {
 
         const menu = Menu.buildFromTemplate([
             {
-                label: 'Delete from Favorites',
+                label: t('contextMenu.deleteFromFavorites'),
                 click: () => finish('delete'),
             },
         ]);
@@ -1263,6 +1268,25 @@ const loadPreferences = () => {
     return normalizePreferences(readJsonFile(appDataPaths.preferences, DEFAULT_PREFERENCES));
 };
 
+/**
+ * Resolve the active UI language from preferences + OS locale.
+ * Returns 'en' or 'fr' (never 'system').
+ */
+const getAppLanguage = () => {
+    try {
+        const prefs = loadPreferences();
+        const lang = prefs.language;
+        if (lang && lang !== 'system') {
+            return lang;
+        }
+        // 'system': derive from OS locale primary tag
+        const tag = app.getLocale().split(/[-_]/)[0].toLowerCase();
+        return tag === 'fr' ? 'fr' : 'en';
+    } catch (_) {
+        return 'en';
+    }
+};
+
 const savePreferences = (preferences) => {
     const currentPreferences = loadPreferences();
     const nextPreferences = mergePreferences(currentPreferences, preferences);
@@ -1342,12 +1366,13 @@ const restoreDefaultPreferences = () => {
 };
 
 const createApplicationMenuTemplate = (verseCount = 0) => {
+    const t = getTranslator(getAppLanguage());
     const count = Number.isFinite(verseCount) ? Math.min(verseCount, 9) : 0;
     const verseItems = Array.from({ length: count }, (_, index) => {
         const verseNumber = index + 1;
 
         return {
-            label: `Verse ${verseNumber}`,
+            label: t('menu.verse', { n: verseNumber }),
             click: () => {
                 mainWindow.webContents.send('verse:change', index);
             },
@@ -1357,10 +1382,10 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
 
     return [
         {
-          label: 'File',
+          label: t('menu.file'),
           submenu: [
             ...(isMac ? [{
-              label: 'Import Songs...',
+              label: t('menu.importSongs'),
               click: () => {
                 handleImportSongs(mainWindow).catch((error) => {
                     console.error('Error importing songs', error);
@@ -1368,7 +1393,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
               },
             }] : [
               {
-                label: 'Import Songs...',
+                label: t('menu.importSongs'),
                 click: () => {
                   handleImportSongs(mainWindow).catch((error) => {
                       console.error('Error importing songs', error);
@@ -1376,7 +1401,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                 },
               },
               {
-                label: 'Import Song Folder...',
+                label: t('menu.importSongFolder'),
                 click: () => {
                   handleImportSongFolder(mainWindow).catch((error) => {
                       console.error('Error importing song folders', error);
@@ -1385,14 +1410,14 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
               },
             ]),
             {
-              label: 'New Song...',
+              label: t('menu.newSong'),
               click: () => {
                 mainWindow.webContents.send('song:new');
               },
               accelerator: 'CmdOrCtrl+N',
             },
             {
-              label: 'Export Current Song JSON',
+              label: t('menu.exportSongJson'),
               click: () => {
                 handleExportCurrentSong(mainWindow).catch((error) => {
                     console.error('Error exporting song', error);
@@ -1400,7 +1425,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
               },
             },
             {
-              label: 'Export Library as Zip',
+              label: t('menu.exportLibraryZip'),
               click: () => {
                 handleExportLibraryZip(mainWindow).catch((error) => {
                     console.error('Error exporting library', error);
@@ -1409,7 +1434,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
             },
             { type: 'separator' },
             {
-              label: 'Check for update...',
+              label: t('menu.checkForUpdate'),
               click: async () => {
                 // Navigate to the General tab if settings is already open.
                 mainWindow.webContents.send('updater:trigger-check');
@@ -1429,7 +1454,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
               },
             },
             {
-              label: 'Preferences',
+              label: t('menu.preferences'),
               click: () => {
                 navigateMainWindow('settings');
               },
@@ -1437,17 +1462,17 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
             },
             { type: 'separator' },
             {
-              label: 'Quit',
+              label: t('menu.quit'),
               click: () => { app.quit(); },
               accelerator: 'CmdOrCtrl+Q'
             }
           ]
         },
         {
-          label: 'Edit',
+          label: t('menu.edit'),
           submenu: [
             {
-              label: 'Edit song...',
+              label: t('menu.editSong'),
               accelerator: 'CmdOrCtrl+E',
               click: () => {
                 mainWindow.webContents.send('song:edit');
@@ -1463,10 +1488,10 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
           ]
         },
         {
-            label: 'Controls',
+            label: t('menu.controls'),
             submenu: [
                 { 
-                    label: 'Start/stop projection',
+                    label: t('menu.toggleProjection'),
                     click: () => {     
                         if (!isProjectionOn) {
                             createProjectorWindow();
@@ -1477,36 +1502,36 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                     accelerator: 'CmdOrCtrl+P'
                 },
                 {
-                    label: 'Next verse',
+                    label: t('menu.nextVerse'),
                     click: () => { mainWindow.webContents.send('projection:next'); },
                     accelerator: 'n'
                 },
                 {
-                    label: 'Next verse',
+                    label: t('menu.nextVerse'),
                     click: () => { mainWindow.webContents.send('projection:next'); },
                     visible: false,
                     acceleratorWorksWhenHidden: true,
                     accelerator: 'Right'
                 },
                 {
-                    label: 'Previous verse',
+                    label: t('menu.prevVerse'),
                     click: () => { mainWindow.webContents.send('projection:prev'); },
                     accelerator: 'p'
                 },
                 {
-                    label: 'Previous verse',
+                    label: t('menu.prevVerse'),
                     visible: false,
                     acceleratorWorksWhenHidden: true,
                     click: () => { mainWindow.webContents.send('projection:prev'); },
                     accelerator: 'Left'
                 },
                 {
-                    label: 'Chorus',
+                    label: t('menu.chorus'),
                     click: () => { mainWindow.webContents.send('projection:chorus'); },
                     accelerator: 'r'
                 },
                 {
-                    label: 'Black screen',
+                    label: t('menu.blackScreen'),
                     click: () => { 
                         if (isProjectionOn) {
                             projectorWindow?.webContents.send('black-screen');
@@ -1621,16 +1646,17 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
         }
 
         if (action === 'delete') {
+            const t = getTranslator(getAppLanguage());
             const song = fileController.readFile(item.songPath);
             const songName = typeof song?.name === 'string' && song.name.trim() ? song.name.trim() : path.basename(item.songPath, path.extname(item.songPath));
             const { response } = await dialog.showMessageBox(window, {
                 type: 'question',
-                buttons: ['Delete Song', 'Cancel'],
+                buttons: [t('dialog.deleteSong.confirm'), t('dialog.deleteSong.cancel')],
                 defaultId: 1,
                 cancelId: 1,
-                title: 'Delete song?',
-                message: `Delete "${songName}"?`,
-                detail: 'This will remove the song file and any favorites that reference it.',
+                title: t('dialog.deleteSong.title'),
+                message: t('dialog.deleteSong.message', { name: songName }),
+                detail: t('dialog.deleteSong.detail'),
                 noLink: true,
             });
 
@@ -1640,9 +1666,9 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
                 if (!result.ok) {
                     await dialog.showMessageBox(window, {
                         type: 'error',
-                        buttons: ['OK'],
-                        title: 'Delete failed',
-                        message: result.error || 'Unable to delete song.',
+                        buttons: [t('dialog.ok')],
+                        title: t('dialog.deleteSong.failTitle'),
+                        message: result.error || t('dialog.deleteSong.failMessage'),
                     });
                 }
 
@@ -1673,6 +1699,7 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
         }
 
         if (action === 'delete') {
+            const t = getTranslator(getAppLanguage());
             const songsInCollection = Array.from(libraryState?.songsById?.values() || []).filter((song) => (
                 Array.isArray(song?.collections)
                 && song.collections.some((collection) => collection?.collectionId === item.collectionId)
@@ -1686,14 +1713,14 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
 
             const { response } = await dialog.showMessageBox(window, {
                 type: 'question',
-                buttons: ['Delete Collection', 'Cancel'],
+                buttons: [t('dialog.deleteCollection.confirm'), t('dialog.deleteCollection.cancel')],
                 defaultId: 1,
                 cancelId: 1,
-                title: 'Delete collection?',
-                message: `Delete collection "${item.collectionName || item.collectionId}"?`,
+                title: t('dialog.deleteCollection.title'),
+                message: t('dialog.deleteCollection.message', { name: item.collectionName || item.collectionId }),
                 detail: removableCount > 0
-                    ? `${removableCount} song file(s) will be deleted and ${retainedCount} song(s) will stay in other collection(s).`
-                    : 'This collection will be removed from the songs that use it.',
+                    ? t('dialog.deleteCollection.detailWithCount', { removable: removableCount, retained: retainedCount })
+                    : t('dialog.deleteCollection.detailNoCount'),
                 noLink: true,
             });
 
@@ -1703,7 +1730,7 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
                 if (!result.ok) {
                     await dialog.showMessageBox(window, {
                         type: 'error',
-                        buttons: ['OK'],
+                        buttons: [t('dialog.ok')],
                         title: 'Delete failed',
                         message: result.error || 'Unable to delete collection.',
                     });
@@ -1750,7 +1777,10 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('save-preferences', (event, preferences) => {
     try {
-        return savePreferences(preferences);
+        const result = savePreferences(preferences);
+        // Rebuild the native menu so language-sensitive labels update immediately.
+        setApplicationMenuForVerseCount(lastVerseCount ?? 0);
+        return result;
     } catch (error) {
         console.error('Error saving preferences', error);
         throw error;
@@ -1808,7 +1838,7 @@ ipcMain.handle('restore-preferences', () => {
 });
 
 ipcMain.handle('get-preferences', () => {
-    return loadPreferences();
+    return { ...loadPreferences(), osLocale: app.getLocale() };
 });
 
 ipcMain.handle('library:state', () => {
@@ -1830,14 +1860,19 @@ ipcMain.handle('song:save', async (event, payload = {}) => {
 });
 
 ipcMain.handle('editor:prompt-song-switch', async () => {
+    const t = getTranslator(getAppLanguage());
     const result = await dialog.showMessageBox(mainWindow, {
         type: 'question',
-        buttons: ['Discard', 'Save', 'Cancel'],
+        buttons: [
+            t('dialog.unsavedChanges.discard'),
+            t('dialog.unsavedChanges.save'),
+            t('dialog.unsavedChanges.cancel'),
+        ],
         defaultId: 1,
         cancelId: 2,
-        title: 'Unsaved changes',
-        message: 'This song has unsaved changes.',
-        detail: 'Do you want to discard them, save them, or stay in the editor?',
+        title: t('dialog.unsavedChanges.title'),
+        message: t('dialog.unsavedChanges.message'),
+        detail: t('dialog.unsavedChanges.detail'),
         noLink: true,
     });
 

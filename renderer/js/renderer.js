@@ -1,4 +1,5 @@
 import { resolveTheme } from './themeUtils.js';
+import { applyTranslations, t } from './i18n.js';
 
 let rootElement = null;
 let toggleProjectionButton = null;
@@ -529,8 +530,8 @@ function setLibrarySearchIcon(isSearching) {
 
     librarySearchIcon.innerHTML = isSearching ? librarySearchClearSvg : librarySearchIconSvg;
     librarySearchIcon.style.cursor = isSearching ? 'pointer' : 'default';
-    librarySearchIcon.title = isSearching ? 'Clear search' : '';
-    librarySearchIcon.setAttribute('aria-label', isSearching ? 'Clear search' : 'Search');
+    librarySearchIcon.title = isSearching ? t('library.search.clear') : '';
+    librarySearchIcon.setAttribute('aria-label', isSearching ? t('library.search.clear') : t('library.search.ariaLabel'));
 }
 
 function deriveCollectionPrefix(value) {
@@ -681,7 +682,7 @@ function renderSongHeader() {
         const titleInput = document.createElement('input');
         titleInput.type = 'text';
         titleInput.value = draft.name || '';
-        titleInput.placeholder = 'Song title';
+        titleInput.placeholder = t('editor.songTitle.placeholder');
         titleInput.className = 'input input-sm w-full max-w-md';
         titleInput.addEventListener('input', () => {
             draft.name = titleInput.value;
@@ -693,12 +694,12 @@ function renderSongHeader() {
         if (!collection) {
             const emptyState = document.createElement('span');
             emptyState.className = 'mr-2 opacity-70';
-            emptyState.textContent = 'No collection';
+            emptyState.textContent = t('editor.noCollection');
 
             const addButton = document.createElement('button');
             addButton.type = 'button';
             addButton.className = 'btn btn-xs btn-outline';
-            addButton.textContent = 'Add collection';
+            addButton.textContent = t('editor.addCollection');
             addButton.addEventListener('click', () => {
                 currentCollectionSelection = 'new';
                 renderSongHeader();
@@ -763,7 +764,7 @@ function renderSongSectionsEditor() {
     const addSectionButton = document.createElement('button');
     addSectionButton.type = 'button';
     addSectionButton.className = 'btn btn-sm btn-outline mb-2';
-    addSectionButton.textContent = '+ Add section';
+    addSectionButton.textContent = t('editor.addSection');
     addSectionButton.addEventListener('click', () => {
         draft.sections.push({
             id: `section-${draft.sections.length + 1}`,
@@ -788,6 +789,7 @@ function renderSongSectionsEditor() {
             return;
         }
 
+        applyTranslations(li instanceof Element ? li : li.parentElement || main);
         li.dataset.sectionId = section.id;
 
         const typeSelect = getTemplateElement(li, '[data-role="type"]');
@@ -797,7 +799,7 @@ function renderSongSectionsEditor() {
             SECTION_TYPES.forEach((type) => {
                 const option = document.createElement('option');
                 option.value = type;
-                option.textContent = type;
+                option.textContent = t(`sectionType.${type}`);
                 typeSelect.appendChild(option);
             });
 
@@ -879,7 +881,7 @@ function renderPreviewEditor() {
 
     const title = document.createElement('p');
     title.className = 'text-xs uppercase mb-2';
-    title.textContent = 'Arrangement maker';
+    title.textContent = t('editor.arrangementTitle');
     editorArrangementRoot.appendChild(title);
 
     const list = document.createElement('ul');
@@ -901,7 +903,8 @@ function renderPreviewEditor() {
             currentSongDraft.sections.forEach((section) => {
                 const option = document.createElement('option');
                 option.value = section.id;
-                option.textContent = `${section.type || 'other'}${section.title ? ` - ${section.title}` : ''}`;
+                const typeLabel = t(`sectionType.${section.type || 'other'}`);
+                option.textContent = `${typeLabel}${section.title ? ` - ${section.title}` : ''}`;
                 select.appendChild(option);
             });
             select.value = step.sectionId;
@@ -931,6 +934,7 @@ function renderPreviewEditor() {
         return;
     }
 
+    applyTranslations(addButton instanceof Element ? addButton : addButton.parentElement || editorArrangementRoot);
     addButton.addEventListener('click', () => {
         const firstSection = currentSongDraft.sections[0];
         if (firstSection) {
@@ -970,6 +974,8 @@ function renderCollectionEditor() {
         return;
     }
 
+    applyTranslations(editorControlsRoot instanceof Element ? editorControlsRoot : editorControlsRoot.parentElement || editorBox);
+
     const selector = getTemplateElement(editorControlsRoot, '[data-role="selector"]');
 
     if (!(selector instanceof HTMLSelectElement)) {
@@ -980,12 +986,12 @@ function renderCollectionEditor() {
     currentSongDraft.collections.forEach((collection, index) => {
         const option = document.createElement('option');
         option.value = String(index);
-        option.textContent = `${collection.name || collection.collectionId || `Collection ${index + 1}`}`;
+        option.textContent = collection.name || collection.collectionId || t('editor.collection.fallback', { n: index + 1 });
         selector.appendChild(option);
     });
     const newOption = document.createElement('option');
     newOption.value = 'new';
-    newOption.textContent = 'new collection';
+    newOption.textContent = t('editor.newCollection');
     selector.appendChild(newOption);
     selector.value = currentCollectionSelection || (currentSongDraft.collections.length ? '0' : 'new');
     protectEditorControl(selector);
@@ -1139,9 +1145,9 @@ function syncCurrentCollectionFromEditor(draft) {
     let collection = getSelectedCollectionDraft(draft);
 
     if (!collection && currentCollectionSelection === 'new') {
-        const nameInput = editorControlsRoot?.querySelector('input[placeholder="Collection name"]');
-        const idInput = editorControlsRoot?.querySelector('input[placeholder="Collection id"]');
-        const numberInput = editorControlsRoot?.querySelector('input[placeholder="Collection number"]');
+        const nameInput = editorControlsRoot?.querySelector('[data-role="name"]');
+        const idInput = editorControlsRoot?.querySelector('[data-role="id"]');
+        const numberInput = editorControlsRoot?.querySelector('[data-role="number"]');
 
         const name = typeof nameInput?.value === 'string' ? nameInput.value.trim() : '';
         const explicitId = typeof idInput?.value === 'string' ? idInput.value.trim() : '';
@@ -1172,9 +1178,9 @@ function syncCurrentCollectionFromEditor(draft) {
         return;
     }
 
-    const nameInput = editorControlsRoot?.querySelector('input[placeholder="Collection name"]');
-    const idInput = editorControlsRoot?.querySelector('input[placeholder="Collection id"]');
-    const numberInput = editorControlsRoot?.querySelector('input[placeholder="Collection number"]');
+    const nameInput = editorControlsRoot?.querySelector('[data-role="name"]');
+    const idInput = editorControlsRoot?.querySelector('[data-role="id"]');
+    const numberInput = editorControlsRoot?.querySelector('[data-role="number"]');
 
     collection.name = typeof nameInput?.value === 'string' && nameInput.value.trim()
         ? nameInput.value.trim()
@@ -1217,7 +1223,7 @@ async function saveCurrentSongDraft(options = {}) {
     });
 
     if (!result?.ok) {
-        window.alert(result?.error || 'Unable to save song.');
+        window.alert(result?.error || t('editor.saveFailed'));
         return;
     }
 
@@ -1302,6 +1308,7 @@ export async function mount(root, context = {}) {
 
     updateEditSongButtonLabel();
     setEditMode(false);
+    applyTranslations(rootElement);
 
     onIpc('projection:status', (isProjectionOn) => {
         setToggleProjectionIcon(isProjectionOn);
@@ -1819,7 +1826,7 @@ function createFavoriteFolderItem(favorite, options = {}) {
         details.open = true;
         setTimeout(() => {
             beginInlineEdit(label, folderName, {
-                placeholder: 'Folder name',
+                placeholder: t('favorites.folderNamePlaceholder'),
                 onCommit: (value) => {
                     li.dataset.favoriteName = value;
                     details.open = true;
@@ -1964,7 +1971,7 @@ function startFavoriteRename(item) {
 
         if (label) {
             beginInlineEdit(label, currentName, {
-                placeholder: 'Folder name',
+                placeholder: t('favorites.folderNamePlaceholder'),
                 onCommit: (value) => {
                     item.dataset.favoriteName = value;
                     scheduleFavoritesSave();
@@ -1981,7 +1988,7 @@ function startFavoriteRename(item) {
 
         if (label) {
             beginInlineEdit(label, currentName, {
-                placeholder: 'Song name',
+                placeholder: t('favorites.songNamePlaceholder'),
                 onCommit: (value) => {
                     item.dataset.favoriteDisplayName = value;
                     scheduleFavoritesSave();
@@ -1997,7 +2004,7 @@ function startFavoriteRename(item) {
 }
 
 function deleteFavoriteItem(item) {
-    if (!window.confirm('Delete this favorite?')) {
+    if (!window.confirm(t('favorites.deleteConfirm'))) {
         return;
     }
 
@@ -2260,11 +2267,11 @@ function scheduleFavoritesSave() {
         ipcRenderer.invoke('favorites:update', serializeFavorites(favoritesListRoot))
             .then((result) => {
                 if (!result?.ok) {
-                    window.alert(result?.error || 'Unable to save favorites.');
+                    window.alert(result?.error || t('editor.favoritesSaveFailed'));
                 }
             })
             .catch((error) => {
-                window.alert(error?.message || 'Unable to save favorites.');
+                window.alert(error?.message || t('editor.favoritesSaveFailed'));
             });
     }, 0);
 }
@@ -2389,6 +2396,7 @@ function renderSongPlaceholder() {
     const placeholder = cloneTemplate('song-placeholder-template');
 
     if (placeholder) {
+        applyTranslations(placeholder instanceof Element ? placeholder : placeholder.parentElement || main);
         main.appendChild(placeholder);
     }
 

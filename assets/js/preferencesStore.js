@@ -11,6 +11,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
     paddingRight: 10,
     useArrangement: true,
     theme: 'system',
+    language: 'system',
 });
 
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -56,6 +57,9 @@ const normalizePreferences = (preferences = {}) => {
         theme: typeof source.theme === 'string' && source.theme.trim()
             ? source.theme.trim()
             : DEFAULT_PREFERENCES.theme,
+        language: typeof source.language === 'string' && ['system', 'en', 'fr'].includes(source.language.trim())
+            ? source.language.trim()
+            : DEFAULT_PREFERENCES.language,
     };
 };
 

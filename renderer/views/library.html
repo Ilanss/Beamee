@@ -4,7 +4,7 @@
     <div class="library flex flex-col flex-1 min-h-0">
       <label id="library-search-wrap"
         class="flex items-center my-2  input input-sm input-border flex w-auto items-center gap-2">
-        <input id="library-search" type="text" placeholder="Search" class="w-full h-full outline-none text-sm">
+        <input id="library-search" type="text" placeholder="Search" data-i18n-placeholder="library.search.placeholder" class="w-full h-full outline-none text-sm">
         <div id="search-icon" class="h-full flex items-center">
 
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 30 30" fill="currentColor">
@@ -14,8 +14,8 @@
         </div>
       </label>
       <div id="library-title" class="flex justify-between items-center gap-2 pb-2">
-        <h2 class="prose">Library</h2>
-        <a id="create-song" class="hover:cursor-pointer tooltip tooltip-right" data-tip="Create a song">
+        <h2 class="prose" data-i18n="library.title">Library</h2>
+        <a id="create-song" class="hover:cursor-pointer tooltip tooltip-right" data-i18n-data-tip="library.createSong.tooltip">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
             stroke="currentColor" class="h-4 w-4">
             <path stroke-linecap="round" stroke-linejoin="round"
@@ -31,8 +31,8 @@
     </div>
     <div class="favorites flex-none pt-4 h-1/4 min-h-0 flex flex-col">
       <div id="favorites-title" class="flex justify-between items-center pb-2">
-        <h2 class="prose">Favorites</h2>
-        <a id="create-playlist" class="hover:cursor-pointer tooltip tooltip-right" data-tip="Create a new playlist">
+        <h2 class="prose" data-i18n="library.favorites">Favorites</h2>
+        <a id="create-playlist" class="hover:cursor-pointer tooltip tooltip-right" data-i18n-data-tip="library.createPlaylist.tooltip">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
             stroke="currentColor" class="h-4 w-4">
             <path stroke-linecap="round" stroke-linejoin="round"
@@ -55,7 +55,7 @@
         <p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
             stroke="currentColor" class="size-6 inline-block mr-3">
             <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          </svg>Select a song</p>
+          </svg><span data-i18n="library.selectSong">Select a song</span></p>
       </li>
     </ul>
   </div>
@@ -65,7 +65,7 @@
       <fieldset class="">
         <label class="label">
           <input id="arrangement" type="checkbox" name="arrangement" checked class="checkbox" />
-          Use arrangement
+          <span data-i18n="library.useArrangement">Use arrangement</span>
         </label>
       </fieldset>
       <!-- <label class="flex cursor-pointer gap-2">
@@ -158,7 +158,7 @@
         </svg>
       </span>
       <select class="select select-xs" data-role="type"></select>
-      <input type="text" placeholder="Section title" class="input input-xs w-full" data-role="title">
+      <input type="text" placeholder="Section title" data-i18n-placeholder="editor.sectionTitle.placeholder" class="input input-xs w-full" data-role="title">
       <button type="button" class="btn btn-xs btn-ghost ml-auto text-error round" data-role="remove">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"
           class="size-4">
@@ -194,24 +194,24 @@
 </template>
 
 <template id="song-arrangement-add-template">
-  <button type="button" class="btn btn-sm btn-outline mt-3" data-role="add">+ Add arrangement item</button>
+  <button type="button" class="btn btn-sm btn-outline mt-3" data-role="add" data-i18n="editor.addArrangementItem">+ Add arrangement item</button>
 </template>
 
 <template id="song-collection-editor-template">
   <div class="space-y-3 mt-3">
     <div class="space-y-2" data-role="collection-row">
       <select class="select select-sm w-full" data-role="selector"></select>
-      <input type="text" placeholder="Collection name" class="input input-sm w-full" data-role="name">
-      <input type="text" placeholder="Collection id" class="input input-sm w-full" data-role="id">
-      <p class="text-xs opacity-70" data-role="helper">Leave id empty to generate from the name.</p>
-      <input type="text" placeholder="Collection number" class="input input-sm w-full" data-role="number">
-      <button type="button" class="btn btn-xs btn-ghost text-error self-start" data-role="remove-collection">
+      <input type="text" placeholder="Collection name" data-i18n-placeholder="editor.collectionName.placeholder" class="input input-sm w-full" data-role="name">
+      <input type="text" placeholder="Collection id" data-i18n-placeholder="editor.collectionId.placeholder" class="input input-sm w-full" data-role="id">
+      <p class="text-xs opacity-70" data-role="helper" data-i18n="editor.collectionIdHelper">Leave id empty to generate from the name.</p>
+      <input type="text" placeholder="Collection number" data-i18n-placeholder="editor.collectionNumber.placeholder" class="input input-sm w-full" data-role="number">
+      <button type="button" class="btn btn-xs btn-ghost text-error self-start" data-role="remove-collection" data-i18n="editor.removeCollection">
         Remove collection
       </button>
     </div>
     <div class="flex gap-2 py-4" data-role="actions">
-      <button type="button" class="btn btn-sm btn-primary" data-role="save">Save</button>
-      <button type="button" class="btn btn-sm btn-ghost" data-role="cancel">Cancel</button>
+      <button type="button" class="btn btn-sm btn-primary" data-role="save" data-i18n="editor.save">Save</button>
+      <button type="button" class="btn btn-sm btn-ghost" data-role="cancel" data-i18n="editor.cancel">Cancel</button>
     </div>
   </div>
 </template>
