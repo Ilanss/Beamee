@@ -2,9 +2,10 @@ import { resolveTheme } from './themeUtils.js';
 
 let rootElement = null;
 let fontSelect = null;
-let form = null;
+let projectionForm = null;
 let saveButton = null;
-let statusElement = null;
+let restoreDefaultsButton = null;
+let resetButton = null;
 let backgroundImageButton = null;
 let removeBackgroundImageButton = null;
 let backgroundImageNameEl = null;
@@ -31,8 +32,13 @@ const fallbackFonts = [
 let currentPreferences = null;
 let selectedTheme = null;
 let availableFonts = fallbackFonts;
+let currentMenuPage = 'settings-projection';
+let isDirty = false;
 const cleanupTasks = [];
 let mountContext = null;
+
+// Pages that have saveable settings and should show the action buttons.
+const PAGES_WITH_ACTIONS = new Set(['settings-projection', 'settings-appearence']);
 
 const on = (target, eventName, handler, options) => {
   target?.addEventListener(eventName, handler, options);
@@ -52,6 +58,8 @@ function loadMenu(menuPage) {
   });
 
   document.querySelector("#" + menuPage).hidden = false;
+  currentMenuPage = menuPage;
+  updateActionBarVisibility();
 }
 
 const onIpc = (channel, handler) => {
@@ -90,14 +98,61 @@ const resetCleanup = () => {
 
 const isMountCurrent = () => mounted && (!mountContext || typeof mountContext.isCurrent !== 'function' || mountContext.isCurrent());
 
+// Resolves the correct status element for the currently active page.
+const getStatusElement = () => {
+  const idMap = {
+    'settings-projection': 'status-projection',
+    'settings-appearence': 'status-appearence',
+    'settings-general': 'status-general',
+  };
+  const id = idMap[currentMenuPage];
+  return id ? rootElement?.querySelector(`#${id}`) : null;
+};
+
 const showStatus = (message, isError = false) => {
-  if (!statusElement) {
+  const el = getStatusElement();
+
+  if (!el) {
     return;
   }
 
-  statusElement.textContent = message;
-  statusElement.classList.toggle('text-error', isError);
-  statusElement.classList.toggle('text-success', !isError);
+  el.textContent = message;
+  el.classList.toggle('text-error', isError);
+  el.classList.toggle('text-success', !isError);
+};
+
+// Marks the active page as having unsaved changes and updates the Save button style.
+const setDirty = (value) => {
+  isDirty = value;
+
+  if (!saveButton) {
+    return;
+  }
+
+  saveButton.classList.toggle('btn-warning', value);
+  saveButton.classList.toggle('btn-primary', !value);
+};
+
+// Shows or hides the Save and Restore Defaults buttons depending on whether the
+// active page has saveable settings. Also clears any pending dirty state since
+// the user navigated away from the previous page.
+const updateActionBarVisibility = () => {
+  const show = PAGES_WITH_ACTIONS.has(currentMenuPage);
+
+  if (saveButton) {
+    saveButton.hidden = !show;
+  }
+
+  if (restoreDefaultsButton) {
+    restoreDefaultsButton.hidden = !show;
+  }
+
+  if (resetButton) {
+    resetButton.hidden = !show;
+  }
+
+  // Switching pages discards any unsaved indicator from the previous page.
+  setDirty(false);
 };
 
 const applyThemeToDocument = (theme) => {
@@ -325,7 +380,8 @@ const applyPreferencesToForm = (preferences) => {
   return true;
 };
 
-const readPreferencesFromForm = () => ({
+// Reads only the Projection page fields.
+const readProjectionPreferences = () => ({
   fontFamily: fontSelect?.value || currentPreferences?.fontFamily,
   fontSize: readNumericValue('font-size', currentPreferences?.fontSize, Number.parseInt),
   textColor: getField('text-color')?.value,
@@ -335,17 +391,28 @@ const readPreferencesFromForm = () => ({
   paddingBottom: readNumericValue('padding-bottom', currentPreferences?.paddingBottom, Number.parseInt),
   paddingLeft: readNumericValue('padding-left', currentPreferences?.paddingLeft, Number.parseInt),
   paddingRight: readNumericValue('padding-right', currentPreferences?.paddingRight, Number.parseInt),
+});
+
+// Reads only the Appearance page fields.
+const readAppearencePreferences = () => ({
   theme: selectedTheme || currentPreferences?.theme || 'light',
 });
 
+// Saves only the settings belonging to the currently active page.
 const savePreferencesFromForm = async () => {
   try {
     showStatus('Saving...');
-    const preferences = await ipcRenderer.invoke('save-preferences', readPreferencesFromForm());
+
+    const payload = currentMenuPage === 'settings-appearence'
+      ? readAppearencePreferences()
+      : readProjectionPreferences();
+
+    const preferences = await ipcRenderer.invoke('save-preferences', payload);
 
     if (isMountCurrent()) {
       try {
         applyPreferencesToForm(preferences);
+        setDirty(false);
       } catch (refreshError) {
         console.error('Saved preferences, but failed to refresh the form', refreshError);
       }
@@ -367,9 +434,10 @@ export async function mount(root, context = {}) {
   mountContext = context;
   rootElement = root;
   fontSelect = rootElement.querySelector('#font-family');
-  form = rootElement.querySelector('#preferences-form');
+  projectionForm = rootElement.querySelector('#form-projection');
   saveButton = rootElement.querySelector('#save-preferences');
-  statusElement = rootElement.querySelector('#preferences-status');
+  restoreDefaultsButton = rootElement.querySelector('#restore-defaults');
+  resetButton = rootElement.querySelector('#reset-preferences');
 
   on(rootElement.querySelector('.menu'), 'click', (e) => {
     const item = e.target.closest('li[data-settings-id]');
@@ -379,6 +447,24 @@ export async function mount(root, context = {}) {
     }
 
     const menuPage = item.dataset.settingsId;
+
+    // Already on this page — nothing to do.
+    if (menuPage === currentMenuPage) {
+      return;
+    }
+
+    if (isDirty) {
+      const confirmed = window.confirm('You have unsaved changes. Leave without saving?');
+
+      if (!confirmed) {
+        return;
+      }
+
+      // Revert the current page's form so it is clean when the user returns.
+      if (currentPreferences) {
+        applyPreferencesToForm(currentPreferences);
+      }
+    }
 
     rootElement.querySelectorAll('li a.menu-active').forEach((anchor) => {
       anchor.classList.remove('menu-active');
@@ -410,7 +496,12 @@ export async function mount(root, context = {}) {
     });
 
     applyThemeToDocument(theme);
+    setDirty(true);
   });
+
+  // Dirty tracking for Projection form fields.
+  on(projectionForm, 'input', () => setDirty(true));
+  on(projectionForm, 'change', () => setDirty(true));
 
   Array.from(rootElement.querySelectorAll('input, textarea')).forEach((input) => {
     if (!(input instanceof HTMLInputElement)) {
@@ -521,18 +612,32 @@ export async function mount(root, context = {}) {
     await savePreferencesFromForm();
   });
 
-  on(form, 'submit', async (e) => {
+  on(projectionForm, 'submit', async (e) => {
     e.preventDefault();
-
     await savePreferencesFromForm();
   });
 
-  on(form, 'reset', (e) => {
-    e.preventDefault();
+  on(resetButton, 'click', () => {
+    if (!currentPreferences) {
+      return;
+    }
 
-    if (currentPreferences) {
+    if (currentMenuPage === 'settings-appearence') {
+      // Revert theme selection to last saved state without touching the form.
+      const themeCards = rootElement?.querySelectorAll('[data-set-theme]') ?? [];
+      const availableThemes = new Set(Array.from(themeCards).map((c) => c.dataset.setTheme));
+      const theme = availableThemes.has(currentPreferences.theme) ? currentPreferences.theme : 'light';
+      selectedTheme = theme;
+      themeCards.forEach((card) => {
+        card.classList.toggle('outline-base-content!', card.dataset.setTheme === theme);
+      });
+      applyThemeToDocument(theme);
+    } else {
+      // Revert all Projection form fields to last saved state.
       applyPreferencesToForm(currentPreferences);
     }
+
+    setDirty(false);
   });
 
   on(rootElement.querySelector('#btn-github'), 'click', () => {
@@ -543,13 +648,24 @@ export async function mount(root, context = {}) {
     ipcRenderer.invoke('open-external-url', 'https://ko-fi.com/ilans_');
   });
 
-  on(rootElement.querySelector('#restore-defaults'), 'click', async () => {
+  on(restoreDefaultsButton, 'click', async () => {
     try {
       showStatus('Restoring defaults...');
-      const preferences = await ipcRenderer.invoke('restore-preferences');
+      let preferences;
+
+      if (currentMenuPage === 'settings-appearence') {
+        // Restore only the theme setting.
+        preferences = await ipcRenderer.invoke('save-preferences', { theme: 'system' });
+      } else {
+        // Restore all Projection settings, including background image cleanup.
+        preferences = await ipcRenderer.invoke('restore-projection-defaults');
+      }
+
       if (isMountCurrent()) {
         applyPreferencesToForm(preferences);
+        setDirty(false);
       }
+
       showStatus('Defaults restored.');
     } catch (error) {
       console.error('Failed to restore default preferences', error);
@@ -582,6 +698,26 @@ export async function mount(root, context = {}) {
     console.error('Failed to load preferences', error);
     showStatus('Failed to load preferences.', true);
   }
+
+  // Set initial action bar state based on the default active page.
+  updateActionBarVisibility();
+}
+
+// Called by the router before navigating away. Returns false to cancel navigation.
+export function canUnmount() {
+  if (!isDirty) {
+    return true;
+  }
+
+  const confirmed = window.confirm('You have unsaved changes. Leave without saving?');
+
+  if (confirmed && currentPreferences) {
+    // Revert in-memory state so the form is clean if settings is re-opened.
+    applyPreferencesToForm(currentPreferences);
+    setDirty(false);
+  }
+
+  return confirmed;
 }
 
 export async function unmount() {
@@ -589,12 +725,15 @@ export async function unmount() {
   mounted = false;
   rootElement = null;
   fontSelect = null;
-  form = null;
+  projectionForm = null;
   saveButton = null;
-  statusElement = null;
+  restoreDefaultsButton = null;
+  resetButton = null;
   backgroundImageButton = null;
   removeBackgroundImageButton = null;
   backgroundImageNameEl = null;
   mountContext = null;
   selectedTheme = null;
+  currentMenuPage = 'settings-projection';
+  isDirty = false;
 }

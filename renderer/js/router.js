@@ -87,6 +87,14 @@ const renderRoute = async (routeName) => {
     return;
   }
 
+  // Give the active module a chance to cancel navigation (e.g. unsaved changes).
+  if (activeModule && typeof activeModule.canUnmount === 'function') {
+    const allowed = await activeModule.canUnmount();
+    if (!allowed) {
+      return;
+    }
+  }
+
   const session = createSession();
 
   await cleanupActiveModule();

@@ -1,7 +1,7 @@
 {
   "name": "beamee",
   "productName": "Beamee",
-  "version": "1.2.4",
+  "version": "1.3.1",
   "description": "",
   "main": "main.js",
   "scripts": {
