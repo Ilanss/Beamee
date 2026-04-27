@@ -1196,6 +1196,12 @@ const createMainWindow = () => {
         performStartupUpdateCheck();
     });
 
+    mainWindow.on('close', () => {
+        if (process.platform !== 'darwin') {
+            app.quit();
+        }
+    });
+
     // Attach persistent renderer-forwarding listeners once per window lifecycle.
     forwardUpdaterEvents();
 }
