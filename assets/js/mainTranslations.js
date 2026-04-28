@@ -16,8 +16,10 @@
 const TRANSLATIONS = {
     en: {
         'menu.file': 'File',
-        'menu.importSongs': 'Import Songs...',
-        'menu.importSongFolder': 'Import Song Folder...',
+        'menu.import': 'Import',
+        'menu.importSongs': 'Import Songs (JSON)...',
+        'menu.importSongFolder': 'Import Song Folder (JSON)...',
+        'menu.importChordPro': 'Import ChordPro...',
         'menu.newSong': 'New Song...',
         'menu.exportSongJson': 'Export Current Song JSON',
         'menu.exportSongPdf': 'Export Current Song PDF',
@@ -81,8 +83,10 @@ const TRANSLATIONS = {
     },
     fr: {
         'menu.file': 'Fichier',
-        'menu.importSongs': 'Importer des chants...',
-        'menu.importSongFolder': 'Importer un dossier...',
+        'menu.import': 'Importer',
+        'menu.importSongs': 'Importer des chants (JSON)...',
+        'menu.importSongFolder': 'Importer un dossier (JSON)...',
+        'menu.importChordPro': 'Importer ChordPro...',
         'menu.newSong': 'Nouveau chant...',
         'menu.exportSongJson': 'Exporter le chant (JSON)',
         'menu.exportSongPdf': 'Exporter le chant (PDF)',
