@@ -7,6 +7,7 @@ const { autoUpdater } = require('electron-updater');
 const libraryController = require('./assets/js/libraryController.js');
 const fileController = require('./assets/js/fileController.js');
 const songSchema = require('./assets/js/songSchema.js');
+const { convertChordPro } = require('./assets/js/chordproImporter.js');
 const { DEFAULT_PREFERENCES, mergePreferences, normalizePreferences } = require('./assets/js/preferencesStore.js');
 const { getTranslator } = require('./assets/js/mainTranslations.js');
 
@@ -1410,6 +1411,116 @@ const handleImportSongFolder = async (window) => {
     }
 };
 
+const handleImportChordPro = async (window) => {
+    try {
+        const result = await dialog.showOpenDialog(window, {
+            properties: ['openFile', 'multiSelections'],
+            filters: [
+                { name: 'ChordPro', extensions: ['cho', 'crd', 'chopro', 'chord', 'pro'] },
+                { name: 'All Files', extensions: ['*'] },
+            ],
+        });
+
+        if (result.canceled || !Array.isArray(result.filePaths) || result.filePaths.length === 0) {
+            return { ok: true, canceled: true };
+        }
+
+        // Convert each ChordPro file into one or more temporary song JSON files
+        // written to a temp directory, then hand them off to the existing import pipeline.
+        const os = require('os');
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'beamee-chordpro-'));
+        const tempPaths = [];
+
+        for (const filePath of result.filePaths) {
+            let text;
+
+            try {
+                text = fs.readFileSync(filePath, 'utf8');
+            } catch (readError) {
+                console.error(`ChordPro import: could not read ${filePath}`, readError);
+                continue;
+            }
+
+            const fileStem = path.basename(filePath, path.extname(filePath));
+            let rawSongs;
+
+            try {
+                rawSongs = convertChordPro(text, fileStem);
+            } catch (parseError) {
+                console.error(`ChordPro import: could not parse ${filePath}`, parseError);
+                continue;
+            }
+
+            for (const rawSong of rawSongs) {
+                // _fileStem is a private helper property added by the importer;
+                // use it to build a virtual source path for normalizeSong, then remove it.
+                const stem = rawSong._fileStem || fileStem;
+                delete rawSong._fileStem;
+
+                const normalizedSong = songSchema.normalizeSong(rawSong, {
+                    sourcePath: path.join(path.dirname(filePath), `${stem}.cho`),
+                });
+
+                const errors = songSchema.validateSong(normalizedSong);
+
+                if (errors.length > 0) {
+                    console.warn(`ChordPro import: validation failed for ${filePath}:`, errors);
+                    continue;
+                }
+
+                const tempFile = path.join(tempDir, `${normalizedSong.id}.json`);
+                fileController.writeFile(tempFile, normalizedSong);
+                tempPaths.push(tempFile);
+            }
+        }
+
+        if (tempPaths.length === 0) {
+            await dialog.showMessageBox(window, {
+                type: 'info',
+                buttons: ['OK'],
+                title: 'Import complete',
+                message: 'No valid songs were found in the selected ChordPro file(s).',
+            });
+
+            return { ok: true, imported: 0 };
+        }
+
+        const importResult = await importSongsFromFiles(window, tempPaths);
+        const summary = summarizeImportResults(importResult.results);
+
+        // Clean up temp files
+        try {
+            for (const tempFile of tempPaths) {
+                fs.unlinkSync(tempFile);
+            }
+
+            fs.rmdirSync(tempDir);
+        } catch (_) {
+            // Non-fatal — OS will clean up temp dir eventually
+        }
+
+        await dialog.showMessageBox(window, {
+            type: 'info',
+            buttons: ['OK'],
+            title: 'Import complete',
+            message: `Imported ${summary.imported} of ${importResult.summary.total} song(s) from ChordPro file(s).`,
+            detail: summary.details.length > 0 ? summary.details.join('\n') : undefined,
+        });
+
+        return importResult;
+    } catch (error) {
+        console.error('Error importing ChordPro files', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Import failed',
+            message: error?.message || 'Unable to import ChordPro files.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to import ChordPro files.' };
+    }
+};
+
 const handleExportCurrentSong = async (window) => {
     try {
         const result = await exportSongJson(window, getCurrentSongPath());
@@ -1540,10 +1651,10 @@ const createProjectorWindow = () => {
     const displays = screen.getAllDisplays();
 
     for (const display of displays) {
-      if (display.bounds.x !== 0 || display.bounds.y !== 0) {
-        externalDisplay = display;
-        break;
-      }
+        if (display.bounds.x !== 0 || display.bounds.y !== 0) {
+            externalDisplay = display;
+            break;
+        }
     }
 
     const windowOptions = {
@@ -1708,125 +1819,138 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
 
     return [
         {
-          label: t('menu.file'),
-          submenu: [
-            ...(isMac ? [{
-              label: t('menu.importSongs'),
-              click: () => {
-                handleImportSongs(mainWindow).catch((error) => {
-                    console.error('Error importing songs', error);
-                });
-              },
-            }] : [
-              {
-                label: t('menu.importSongs'),
-                click: () => {
-                  handleImportSongs(mainWindow).catch((error) => {
-                      console.error('Error importing songs', error);
-                  });
+            label: t('menu.file'),
+            submenu: [
+                {
+                    label: t('menu.newSong'),
+                    click: () => {
+                        mainWindow.webContents.send('song:new');
+                    },
+                    accelerator: 'CmdOrCtrl+N',
                 },
-              },
-              {
-                label: t('menu.importSongFolder'),
-                click: () => {
-                  handleImportSongFolder(mainWindow).catch((error) => {
-                      console.error('Error importing song folders', error);
-                  });
+                {
+                    label: t('menu.import'),
+                    submenu: [
+                        ...(isMac ? [{
+                            label: t('menu.importSongs'),
+                            click: () => {
+                                handleImportSongs(mainWindow).catch((error) => {
+                                    console.error('Error importing songs', error);
+                                });
+                            },
+                        }] : [
+                            {
+                                label: t('menu.importSongs'),
+                                click: () => {
+                                    handleImportSongs(mainWindow).catch((error) => {
+                                        console.error('Error importing songs', error);
+                                    });
+                                },
+                            },
+                            {
+                                label: t('menu.importSongFolder'),
+                                click: () => {
+                                    handleImportSongFolder(mainWindow).catch((error) => {
+                                        console.error('Error importing song folders', error);
+                                    });
+                                },
+                            },
+                        ]),
+                        {
+                            label: t('menu.importChordPro'),
+                            click: () => {
+                                handleImportChordPro(mainWindow).catch((error) => {
+                                    console.error('Error importing ChordPro files', error);
+                                });
+                            },
+                        },
+                    ],
                 },
-              },
-            ]),
-            {
-              label: t('menu.newSong'),
-              click: () => {
-                mainWindow.webContents.send('song:new');
-              },
-              accelerator: 'CmdOrCtrl+N',
-            },
-            {
-              label: t('menu.exportSongJson'),
-              click: () => {
-                handleExportCurrentSong(mainWindow).catch((error) => {
-                    console.error('Error exporting song', error);
-                });
-              },
-            },
-            {
-              label: t('menu.exportSongPdf'),
-              click: () => {
-                handleExportCurrentSongPdf(mainWindow).catch((error) => {
-                    console.error('Error exporting song as PDF', error);
-                });
-              },
-            },
-            {
-              label: t('menu.exportLibraryZip'),
-              click: () => {
-                handleExportLibraryZip(mainWindow).catch((error) => {
-                    console.error('Error exporting library', error);
-                });
-              },
-            },
-            { type: 'separator' },
-            {
-              label: t('menu.checkForUpdate'),
-              click: async () => {
-                // Navigate to the General tab if settings is already open.
-                mainWindow.webContents.send('updater:trigger-check');
-                try {
-                    isManualUpdateCheck = true;
-                    await autoUpdater.checkForUpdates();
-                } catch (err) {
-                    isManualUpdateCheck = false;
-                    dialog.showMessageBox(mainWindow, {
-                        type: 'error',
-                        title: 'Update check failed',
-                        message: 'Could not check for updates.',
-                        detail: err?.message || 'Unknown error',
-                        buttons: ['OK'],
-                    });
+                {
+                    label: t('menu.exportSongJson'),
+                    click: () => {
+                        handleExportCurrentSong(mainWindow).catch((error) => {
+                            console.error('Error exporting song', error);
+                        });
+                    },
+                },
+                {
+                    label: t('menu.exportSongPdf'),
+                    click: () => {
+                        handleExportCurrentSongPdf(mainWindow).catch((error) => {
+                            console.error('Error exporting song as PDF', error);
+                        });
+                    },
+                },
+                {
+                    label: t('menu.exportLibraryZip'),
+                    click: () => {
+                        handleExportLibraryZip(mainWindow).catch((error) => {
+                            console.error('Error exporting library', error);
+                        });
+                    },
+                },
+                { type: 'separator' },
+                {
+                    label: t('menu.checkForUpdate'),
+                    click: async () => {
+                        // Navigate to the General tab if settings is already open.
+                        mainWindow.webContents.send('updater:trigger-check');
+                        try {
+                            isManualUpdateCheck = true;
+                            await autoUpdater.checkForUpdates();
+                        } catch (err) {
+                            isManualUpdateCheck = false;
+                            dialog.showMessageBox(mainWindow, {
+                                type: 'error',
+                                title: 'Update check failed',
+                                message: 'Could not check for updates.',
+                                detail: err?.message || 'Unknown error',
+                                buttons: ['OK'],
+                            });
+                        }
+                    },
+                },
+                {
+                    label: t('menu.preferences'),
+                    click: () => {
+                        navigateMainWindow('settings');
+                    },
+                    accelerator: 'CmdOrCtrl+,',
+                },
+                { type: 'separator' },
+                {
+                    label: t('menu.quit'),
+                    click: () => { app.quit(); },
+                    accelerator: 'CmdOrCtrl+Q'
                 }
-              },
-            },
-            {
-              label: t('menu.preferences'),
-              click: () => {
-                navigateMainWindow('settings');
-              },
-              accelerator: 'CmdOrCtrl+,',
-            },
-            { type: 'separator' },
-            {
-              label: t('menu.quit'),
-              click: () => { app.quit(); },
-              accelerator: 'CmdOrCtrl+Q'
-            }
-          ]
+            ]
         },
         {
-          label: t('menu.edit'),
-          submenu: [
-            {
-              label: t('menu.editSong'),
-              accelerator: 'CmdOrCtrl+E',
-              click: () => {
-                mainWindow.webContents.send('song:edit');
-              },
-            },
-            { type: 'separator' },
-            { role: 'undo' },
-            { role: 'redo' },
-            { type: 'separator' },
-            { role: 'cut' },
-            { role: 'copy' },
-            { role: 'paste' }
-          ]
+            label: t('menu.edit'),
+            submenu: [
+                {
+                    label: t('menu.editSong'),
+                    accelerator: 'CmdOrCtrl+E',
+                    click: () => {
+                        mainWindow.webContents.send('song:edit');
+                    },
+                },
+                { type: 'separator' },
+                { role: 'undo' },
+                { role: 'redo' },
+                { type: 'separator' },
+                { role: 'cut' },
+                { role: 'copy' },
+                { role: 'paste' }
+            ]
         },
         {
             label: t('menu.controls'),
             submenu: [
-                { 
+                {
                     label: t('menu.toggleProjection'),
-                    click: () => {     
+                    click: () => {
                         if (!isProjectionOn) {
                             createProjectorWindow();
                         } else {
@@ -1877,11 +2001,11 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                 },
                 {
                     label: t('menu.blackScreen'),
-                    click: () => { 
+                    click: () => {
                         if (isProjectionOn) {
                             projectorWindow?.webContents.send('black-screen');
                         }
-                        mainWindow.webContents.send('black-screen'); 
+                        mainWindow.webContents.send('black-screen');
                     },
                     accelerator: 'b'
                 },
@@ -1917,15 +2041,15 @@ ipcMain.on('projection:toggle', () => {
 
 ipcMain.on('display-lyrics', (event, lyrics) => {
     if (isProjectionOn) {
-      projectorWindow.webContents.send('display-lyrics', lyrics);
+        projectorWindow.webContents.send('display-lyrics', lyrics);
     }
-  });
+});
 
 ipcMain.on('black-screen', () => {
     if (isProjectionOn) {
-      projectorWindow.webContents.send('black-screen');
+        projectorWindow.webContents.send('black-screen');
     }
-  });
+});
 
 ipcMain.handle('favorites:context-menu', async (event, item) => {
     const window = BrowserWindow.fromWebContents(event.sender);
@@ -2111,7 +2235,7 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
 ipcMain.handle('favorites:update', (event, favorites) => {
     return saveFavorites(favorites);
 });
-  
+
 app.whenReady().then(() => {
     appDataPaths = bootstrapAppData();
 
