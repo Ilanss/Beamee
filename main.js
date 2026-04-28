@@ -1838,6 +1838,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                                     console.error('Error importing songs', error);
                                 });
                             },
+                            accelerator: "CmdOrCtrl+I"
                         }] : [
                             {
                                 label: t('menu.importSongs'),
@@ -1846,6 +1847,7 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                                         console.error('Error importing songs', error);
                                     });
                                 },
+                                accelerator: "CmdOrCtrl+I"
                             },
                             {
                                 label: t('menu.importSongFolder'),
@@ -1866,53 +1868,58 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                         },
                     ],
                 },
-              },
-            ]),
-
-            {
-              label: t('menu.exportSongJson'),
-              click: () => {
-                handleExportCurrentSong(mainWindow).catch((error) => {
-                    console.error('Error exporting song', error);
-                });
-              },
-            },
-            {
-              label: t('menu.exportSongPdf'),
-              click: () => {
-                handleExportCurrentSongPdf(mainWindow).catch((error) => {
-                    console.error('Error exporting song as PDF', error);
-                });
-              },
-            },
-            {
-              label: t('menu.exportLibraryZip'),
-              click: () => {
-                handleExportLibraryZip(mainWindow).catch((error) => {
-                    console.error('Error exporting library', error);
-                });
-              },
-            },
-            { type: 'separator' },
-            {
-              label: t('menu.checkForUpdate'),
-              click: async () => {
-                // Navigate to the General tab if settings is already open.
-                mainWindow.webContents.send('updater:trigger-check');
-                try {
-                    isManualUpdateCheck = true;
-                    await autoUpdater.checkForUpdates();
-                } catch (err) {
-                    isManualUpdateCheck = false;
-                    dialog.showMessageBox(mainWindow, {
-                        type: 'error',
-                        title: 'Update check failed',
-                        message: 'Could not check for updates.',
-                        detail: err?.message || 'Unknown error',
-                        buttons: ['OK'],
-                    });
+                {
+                    label: t('menu.export'),
+                    submenu: [
+                        {
+                            label: t('menu.exportSongJson'),
+                            click: () => {
+                                handleExportCurrentSong(mainWindow).catch((error) => {
+                                    console.error('Error exporting song', error);
+                                });
+                            },
+                            accelerator: "CmdOrCtrl+E"
+                        },
+                        {
+                            label: t('menu.exportSongPdf'),
+                            click: () => {
+                                handleExportCurrentSongPdf(mainWindow).catch((error) => {
+                                    console.error('Error exporting song as PDF', error);
+                                });
+                            },
+                        },
+                        {
+                            label: t('menu.exportLibraryZip'),
+                            click: () => {
+                                handleExportLibraryZip(mainWindow).catch((error) => {
+                                    console.error('Error exporting library', error);
+                                });
+                            },
+                        },
+                    ]
                 },
-                                  {
+                { type: 'separator' },
+                {
+                    label: t('menu.checkForUpdate'),
+                    click: async () => {
+                        // Navigate to the General tab if settings is already open.
+                        mainWindow.webContents.send('updater:trigger-check');
+                        try {
+                            isManualUpdateCheck = true;
+                            await autoUpdater.checkForUpdates();
+                        } catch (err) {
+                            isManualUpdateCheck = false;
+                            dialog.showMessageBox(mainWindow, {
+                                type: 'error',
+                                title: 'Update check failed',
+                                message: 'Could not check for updates.',
+                                detail: err?.message || 'Unknown error',
+                                buttons: ['OK'],
+                            });
+                        }
+                    }
+                },
+                {
                     label: t('menu.preferences'),
                     click: () => {
                         navigateMainWindow('settings');
