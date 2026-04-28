@@ -218,6 +218,295 @@ const getSongPathForId = (songId) => {
 
 const getCurrentSongPath = () => currentSongPath;
 
+const escapeHtml = (value) => String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+const normalizeFileName = (value, fallback = 'song') => {
+    const name = String(value ?? '').trim();
+
+    if (!name) {
+        return fallback;
+    }
+
+    return name.replace(/[<>:"|?*\\/]+/g, '-');
+};
+
+const getSongCollectionForExport = (song, sourceCollectionId = '', sourceCollectionName = '') => {
+    if (!song || !Array.isArray(song.collections) || song.collections.length === 0) {
+        return null;
+    }
+
+    const collectionId = typeof sourceCollectionId === 'string' ? sourceCollectionId.trim() : '';
+    const collectionName = typeof sourceCollectionName === 'string' ? sourceCollectionName.trim() : '';
+
+    if (collectionId) {
+        const match = song.collections.find((collection) => collection?.collectionId === collectionId);
+
+        if (match) {
+            return match;
+        }
+    }
+
+    if (collectionName) {
+        const match = song.collections.find((collection) => typeof collection?.name === 'string' && collection.name.trim() === collectionName);
+
+        if (match) {
+            return match;
+        }
+    }
+
+    return song.collections.find((collection) => collection && typeof collection.collectionId === 'string') || null;
+};
+
+const formatCollectionHeader = (collection) => {
+    if (!collection) {
+        return '';
+    }
+
+    const name = typeof collection.name === 'string' && collection.name.trim()
+        ? collection.name.trim()
+        : typeof collection.collectionId === 'string' && collection.collectionId.trim()
+            ? collection.collectionId.trim()
+            : 'Collection';
+
+    const number = Number.isInteger(collection.number) && collection.number > 0
+        ? ` #${collection.number}`
+        : '';
+
+    return `${name}${number}`;
+};
+
+const getPdfSectionLabel = (sectionType, t) => {
+    const key = `sectionType.${typeof sectionType === 'string' && sectionType.trim() ? sectionType.trim() : 'other'}`;
+    return t(key);
+};
+
+const expandSongForPdf = (songData, useArrangement = true, t = (key) => key) => {
+    if (!songData || !Array.isArray(songData.sections)) {
+        return [];
+    }
+
+    const sectionsById = new Map(
+        songData.sections
+            .filter((section) => section && typeof section.id === 'string')
+            .map((section) => [section.id, section])
+    );
+
+    if (!useArrangement || !Array.isArray(songData.arrangement) || songData.arrangement.length === 0) {
+        const counts = new Map();
+
+        return songData.sections
+            .filter((section) => section && typeof section.id === 'string')
+            .map((section) => ({
+                heading: (() => {
+                    const customTitle = typeof section.title === 'string' && section.title.trim() ? section.title.trim() : '';
+
+                    if (customTitle) {
+                        return customTitle;
+                    }
+
+                    const typeKey = typeof section.type === 'string' && section.type.trim() ? section.type.trim() : 'other';
+                    const nextCount = (counts.get(typeKey) || 0) + 1;
+                    counts.set(typeKey, nextCount);
+                    return `${getPdfSectionLabel(typeKey, t)} ${nextCount}`;
+                })(),
+                text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
+            }));
+    }
+
+    const counts = new Map();
+
+    return songData.arrangement
+        .map((step) => {
+            const section = sectionsById.get(step?.sectionId);
+
+            if (!section) {
+                return null;
+            }
+
+            const customTitle = typeof section.title === 'string' && section.title.trim() ? section.title.trim() : '';
+            const typeKey = typeof section.type === 'string' && section.type.trim() ? section.type.trim() : 'other';
+
+            let heading = customTitle;
+
+            if (!heading) {
+                const nextCount = (counts.get(typeKey) || 0) + 1;
+                counts.set(typeKey, nextCount);
+                heading = `${getPdfSectionLabel(typeKey, t)} ${nextCount}`;
+            }
+
+            return {
+                heading,
+                text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
+            };
+        })
+        .filter(Boolean);
+};
+
+const buildSongPdfHtml = (song, collection, blocks, lang = 'en') => {
+    const header = formatCollectionHeader(collection);
+    const body = Array.isArray(blocks) ? blocks.map((block) => `
+            <section class="section">
+              <h2>${escapeHtml(block.heading)}</h2>
+              <div class="lyrics">${escapeHtml(block.text)}</div>
+            </section>`).join('') : '';
+
+    return `<!doctype html>
+<html lang="${escapeHtml(lang || 'en')}">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(song?.name || 'Song')}</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm;
+      }
+
+      :root {
+        color-scheme: light;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+        color: #111111;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 12pt;
+        line-height: 1.45;
+      }
+
+      body {
+        padding: 0;
+      }
+
+      .page {
+        width: 100%;
+      }
+
+      .header {
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #d0d0d0;
+      }
+
+      h1, h2, p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 20pt;
+        line-height: 1.2;
+        margin-bottom: 4px;
+      }
+
+      .collection {
+        font-size: 11pt;
+        color: #555555;
+      }
+
+      .section {
+        margin: 0 0 14px;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .section h2 {
+        font-size: 12pt;
+        margin-bottom: 4px;
+      }
+
+      .lyrics {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <h1>${escapeHtml(song?.name || 'Song')}</h1>
+        ${header ? `<p class="collection">${escapeHtml(header)}</p>` : ''}
+      </header>
+      ${body}
+    </main>
+  </body>
+</html>`;
+};
+
+const exportSongPdf = async (window, songPath, { collectionId = '', collectionName = '' } = {}) => {
+    if (!songPath) {
+        return { ok: false, error: 'No song is selected.' };
+    }
+
+    const song = fileController.readFile(songPath);
+
+    if (!song || typeof song !== 'object') {
+        return { ok: false, error: 'Selected song could not be read.' };
+    }
+
+    const t = getTranslator(getAppLanguage());
+    const { response, checkboxChecked } = await dialog.showMessageBox(window, {
+        type: 'question',
+        buttons: [t('dialog.exportPdf.export'), t('dialog.exportPdf.cancel')],
+        defaultId: 0,
+        cancelId: 1,
+        title: t('dialog.exportPdf.title'),
+        message: t('dialog.exportPdf.message'),
+        checkboxLabel: t('dialog.exportPdf.useArrangement'),
+        checkboxChecked: true,
+        noLink: true,
+    });
+
+    if (response !== 0) {
+        return { ok: true, canceled: true };
+    }
+
+    const useArrangement = Boolean(checkboxChecked);
+    const normalizedSong = songSchema.normalizeSong(song, { sourcePath: songPath });
+    const collection = getSongCollectionForExport(normalizedSong, collectionId, collectionName);
+    const defaultName = `${normalizeFileName(normalizedSong.name || path.basename(songPath, path.extname(songPath)), 'song')}.pdf`;
+    const { canceled, filePath } = await dialog.showSaveDialog(window, {
+        defaultPath: defaultName,
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) {
+        return { ok: true, canceled: true };
+    }
+
+    const lang = getAppLanguage();
+    const tPdf = getTranslator(lang);
+    const blocks = expandSongForPdf(normalizedSong, useArrangement, tPdf);
+    const html = buildSongPdfHtml(normalizedSong, collection, blocks, lang);
+    const pdfWindow = new BrowserWindow({
+        show: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false,
+        },
+    });
+
+    try {
+        await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+        const pdfBuffer = await pdfWindow.webContents.printToPDF({
+            printBackground: true,
+            preferCSSPageSize: true,
+        });
+
+        fs.writeFileSync(filePath, pdfBuffer);
+        return { ok: true, filePath };
+    } finally {
+        if (!pdfWindow.isDestroyed()) {
+            pdfWindow.destroy();
+        }
+    }
+};
+
 const isMac = process.platform === 'darwin';
 const windowIcon = process.platform === 'win32'
     ? path.join(__dirname, 'renderer', 'img', 'beamee-icon.ico')
@@ -952,6 +1241,10 @@ const showSongContextMenu = (window, songPath) => {
                 click: () => finish('export-json'),
             },
             {
+                label: t('contextMenu.exportPdf'),
+                click: () => finish('export-pdf'),
+            },
+            {
                 label: t('contextMenu.deleteSong'),
                 click: () => finish('delete'),
             },
@@ -1141,6 +1434,33 @@ const handleExportCurrentSong = async (window) => {
         });
 
         return { ok: false, error: error?.message || 'Unable to export song.' };
+    }
+};
+
+const handleExportCurrentSongPdf = async (window) => {
+    try {
+        const result = await exportSongPdf(window, getCurrentSongPath());
+
+        if (!result.ok && !result.canceled) {
+            await dialog.showMessageBox(window, {
+                type: 'error',
+                buttons: ['OK'],
+                title: 'Export failed',
+                message: result.error || 'Unable to export song as PDF.',
+            });
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Error exporting song as PDF', error);
+        await dialog.showMessageBox(window, {
+            type: 'error',
+            buttons: ['OK'],
+            title: 'Export failed',
+            message: error?.message || 'Unable to export song as PDF.',
+        });
+
+        return { ok: false, error: error?.message || 'Unable to export song as PDF.' };
     }
 };
 
@@ -1431,6 +1751,14 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
               },
             },
             {
+              label: t('menu.exportSongPdf'),
+              click: () => {
+                handleExportCurrentSongPdf(mainWindow).catch((error) => {
+                    console.error('Error exporting song as PDF', error);
+                });
+              },
+            },
+            {
               label: t('menu.exportLibraryZip'),
               click: () => {
                 handleExportLibraryZip(mainWindow).catch((error) => {
@@ -1643,6 +1971,23 @@ ipcMain.handle('library:context-menu', async (event, item = {}) => {
                     buttons: ['OK'],
                     title: 'Export failed',
                     message: error?.message || 'Unable to export song.',
+                });
+            }
+        }
+
+        if (action === 'export-pdf') {
+            try {
+                await exportSongPdf(window, item.songPath, {
+                    collectionId: item.collectionId,
+                    collectionName: item.collectionName,
+                });
+            } catch (error) {
+                console.error('Error exporting song as PDF', error);
+                await dialog.showMessageBox(window, {
+                    type: 'error',
+                    buttons: ['OK'],
+                    title: 'Export failed',
+                    message: error?.message || 'Unable to export song as PDF.',
                 });
             }
         }
