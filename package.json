@@ -46,7 +46,8 @@
     },
     "win": {
       "icon": "renderer/img/beamee-icon.ico",
-      "target": ["nsis"]
+      "target": ["nsis"],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "linux": {
       "target": ["deb", "rpm", "AppImage"]
