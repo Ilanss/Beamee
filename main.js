@@ -1898,6 +1898,14 @@ const createApplicationMenuTemplate = (verseCount = 0) => {
                         },
                     ]
                 },
+                {
+                    label: t('menu.reloadLibrary'),
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => {
+                        refreshLibraryState();
+                        notifyLibraryChanged();
+                    },
+                },
                 { type: 'separator' },
                 {
                     label: t('menu.checkForUpdate'),

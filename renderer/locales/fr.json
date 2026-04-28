@@ -118,6 +118,7 @@
   "menu.exportSongJson": "Exporter le chant (JSON)",
   "menu.exportSongPdf": "Exporter le chant (PDF)",
   "menu.exportLibraryZip": "Exporter la bibliothèque (Zip)",
+  "menu.reloadLibrary": "Recharger la bibliothèque",
   "menu.checkForUpdate": "Rechercher une mise à jour...",
   "menu.preferences": "Préférences",
   "menu.quit": "Quitter",
