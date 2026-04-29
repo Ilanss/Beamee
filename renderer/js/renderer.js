@@ -646,7 +646,12 @@ function renderSongView(songData) {
         const li = document.createElement('li');
         const label = document.createElement('p');
         label.className = 'mt-2 text-xs uppercase';
-        label.textContent = `#${i + 1} ${verse.label || verse.type}`;
+        // console.log(verse.id.split("-")[1]);
+        const verseNum = verse.id.split("-")[verse.id.split("-").length - 1];
+        const displayLabel = (verse.label && verse.label !== verse.type)
+            ? verse.label
+            : t(`sectionType.${verse.type || 'other'}`);
+        label.textContent = `#${verseNum} ${displayLabel}`;
 
         const text = document.createElement('div');
         appendTextWithLineBreaks(text, verse.text);
@@ -658,8 +663,7 @@ function renderSongView(songData) {
 
         li.addEventListener('click', () => {
             currentVerseIndex = i;
-            document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
-            li.classList.add("bg-base-300");
+            setActiveVerseHighlight(i);
             updateProjection();
         });
 
@@ -1320,6 +1324,7 @@ export async function mount(root, context = {}) {
 
     onIpc('black-screen', () => {
         currentVerseIndex = undefined;
+        setActiveVerseHighlight(undefined);
         if (previewLyrics) {
             previewLyrics.replaceChildren();
         }
@@ -1394,6 +1399,7 @@ export async function mount(root, context = {}) {
 
     onIpc('verse:change', (verse) => {
         currentVerseIndex = verse;
+        setActiveVerseHighlight(verse);
         updateProjection();
     });
 
@@ -1408,12 +1414,6 @@ export async function mount(root, context = {}) {
     });
 
     on(rootElement.querySelector('#black-screen'), 'click', () => {
-        if (previewLyrics) {
-            previewLyrics.replaceChildren();
-        }
-
-        document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
-        currentVerseIndex = undefined;
         ipcRenderer.send('black-screen');
     });
 
@@ -2476,20 +2476,25 @@ function updateProjection() {
     ipcRenderer.send('display-lyrics', verseText);
 }
 
+function setActiveVerseHighlight(index) {
+    document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
+    if (index !== undefined) {
+        document.querySelector("#verse-" + index)?.classList.add("bg-base-300");
+    }
+}
+
 function changeToPrevVerse() {
     if (currentVerseIndex !== undefined && currentVerseIndex > 0) {
-        document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
         currentVerseIndex--;
-        document.querySelector("#verse-" + currentVerseIndex).classList.add("bg-base-300");
+        setActiveVerseHighlight(currentVerseIndex);
         updateProjection();
     }
 }
 
 function changeToNextVerse() {
     if (currentVerseIndex !== undefined && Array.isArray(currentLyrics) && currentVerseIndex < currentLyrics.length - 1) {
-        document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
         currentVerseIndex++;
-        document.querySelector("#verse-" + currentVerseIndex).classList.add("bg-base-300");
+        setActiveVerseHighlight(currentVerseIndex);
         updateProjection();
     }
 }
@@ -2506,5 +2511,6 @@ function changeToChorus() {
     }
 
     currentVerseIndex = chorusIndex;
+    setActiveVerseHighlight(chorusIndex);
     updateProjection();
 }

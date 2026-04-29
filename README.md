@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.3.2-blue" />
+  <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-blue" />
   <img alt="License" src="https://img.shields.io/badge/license-ISC-green" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" />
 </p>
@@ -30,7 +30,7 @@ Beamee lets a worship leader or operator control song lyrics from their laptop w
 - **Song editor** — create or edit songs with sections (verse, chorus, bridge, etc.), collection metadata, and a drag-and-drop arrangement builder
 - **Projection controls** — Next / Prev / Jump to chorus / Blank screen, also accessible from the keyboard and app menu
 - **Live preview** — 16:9 thumbnail in the main window showing exactly what the projector displays
-- **Import / Export** — import individual JSON files or folders; export a song or the full library as a ZIP archive
+- **Import / Export** — import individual JSON files or folders; export a song as JSON or PDF, or export the full library as a ZIP archive
 - **Preferences** — font family (from local system fonts), size, text color, background color or image, line height, padding, and arrangement toggle
 - **Themes** — 20+ DaisyUI themes (light, dark, cupcake, synthwave, dracula, and more) plus system auto-detect
 - **Auto-update** — checks GitHub releases on startup; update progress shown in Settings
