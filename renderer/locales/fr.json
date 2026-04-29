@@ -84,6 +84,7 @@
   "editor.addArrangementItem": "+ Ajouter un élément",
   "editor.sectionTitle.placeholder": "Titre de la section",
   "editor.songTitle.placeholder": "Titre du chant",
+  "editor.songCopyright.placeholder": "Droits d'auteur",
   "editor.collectionName.placeholder": "Nom du recueil",
   "editor.collectionId.placeholder": "Identifiant du recueil",
   "editor.collectionNumber.placeholder": "Numéro dans le recueil",

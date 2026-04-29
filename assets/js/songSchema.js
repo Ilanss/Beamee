@@ -192,6 +192,10 @@ const normalizeSong = (song, options = {}) => {
         normalized.notes = raw.notes.trim();
     }
 
+    if (typeof raw.copyright === 'string' && raw.copyright.trim()) {
+        normalized.copyright = raw.copyright.trim();
+    }
+
     return normalized;
 };
 
@@ -215,6 +219,7 @@ const validateSong = (song) => {
         'language',
         'tags',
         'notes',
+        'copyright',
     ]);
 
     Object.keys(song).forEach((key) => {
@@ -313,6 +318,10 @@ const validateSong = (song) => {
                 errors.push(`arrangement[${index}].sectionId must reference a section id`);
             }
         });
+    }
+
+    if (song.copyright !== undefined && typeof song.copyright !== 'string') {
+        errors.push('copyright must be a string');
     }
 
     return errors;

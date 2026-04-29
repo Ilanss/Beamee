@@ -20,6 +20,7 @@ let editorBox = null;
 let editorArrangementRoot = null;
 let songNameNode = null;
 let songNumberNode = null;
+let copyrightNode = null;
 let editSongButton = null;
 let editorControlsRoot = null;
 let mounted = false;
@@ -737,6 +738,9 @@ function renderSongHeader() {
 
     if (currentSongData) {
         songNameNode.textContent = currentSongData.name || '';
+        if (copyrightNode) {
+            copyrightNode.textContent = currentSongData.copyright || '';
+        }
         songNumberNode.replaceChildren();
         const collections = currentSongData.collections ?? [];
         collections.forEach((col, i) => {
@@ -753,6 +757,9 @@ function renderSongHeader() {
 
     songNameNode.textContent = '';
     songNumberNode.textContent = '';
+    if (copyrightNode) {
+        copyrightNode.textContent = '';
+    }
 }
 
 function renderSongSectionsEditor() {
@@ -1011,6 +1018,7 @@ function renderCollectionEditor() {
     const nameInput = getTemplateElement(editorControlsRoot, '[data-role="name"]');
     const idInput = getTemplateElement(editorControlsRoot, '[data-role="id"]');
     const numberInput = getTemplateElement(editorControlsRoot, '[data-role="number"]');
+    const copyrightInput = getTemplateElement(editorControlsRoot, '[data-role="copyright"]');
     const removeButton = getTemplateElement(editorControlsRoot, '[data-role="remove-collection"]');
 
     if (nameInput instanceof HTMLInputElement) {
@@ -1071,6 +1079,15 @@ function renderCollectionEditor() {
                 markSongEditorDirty();
                 renderSongHeader();
             }
+        });
+    }
+
+    if (copyrightInput instanceof HTMLInputElement) {
+        copyrightInput.value = currentSongDraft.copyright || '';
+        protectEditorControl(copyrightInput);
+        copyrightInput.addEventListener('input', () => {
+            currentSongDraft.copyright = copyrightInput.value || undefined;
+            markSongEditorDirty();
         });
     }
 
@@ -1297,6 +1314,7 @@ export async function mount(root, context = {}) {
     favoritesListRoot = favoritesListContainer?.querySelector('ul');
     createPlaylistButton = rootElement.querySelector('#create-playlist');
     previewBox = rootElement.querySelector('#preview-box');
+    copyrightNode = rootElement.querySelector('#copyright p');
     editorBox = rootElement.querySelector('#editor-box');
     previewContent = rootElement.querySelector('#preview');
     editorArrangementRoot = editorBox?.querySelector('#editor-arrangement') || null;
@@ -1572,6 +1590,7 @@ export async function unmount() {
     editorArrangementRoot = null;
     songNameNode = null;
     songNumberNode = null;
+    copyrightNode = null;
     editSongButton = null;
     editorControlsRoot = null;
     libraryClickDelegated = false;
