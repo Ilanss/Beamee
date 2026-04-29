@@ -646,7 +646,12 @@ function renderSongView(songData) {
         const li = document.createElement('li');
         const label = document.createElement('p');
         label.className = 'mt-2 text-xs uppercase';
-        label.textContent = `#${i + 1} ${verse.label || verse.type}`;
+        // console.log(verse.id.split("-")[1]);
+        const verseNum = verse.id.split("-")[verse.id.split("-").length - 1];
+        const displayLabel = (verse.label && verse.label !== verse.type)
+            ? verse.label
+            : t(`sectionType.${verse.type || 'other'}`);
+        label.textContent = `#${verseNum} ${displayLabel}`;
 
         const text = document.createElement('div');
         appendTextWithLineBreaks(text, verse.text);
