@@ -12,6 +12,11 @@ import {
     applyPreviewPreferences as _applyPreviewPreferences,
     deriveCollectionPrefix,
     buildCollectionSearchAliases,
+    handleFolderToggle,
+    enableFolderToggleFallback,
+    unpinActiveSong,
+    updateLibraryItemVisibility,
+    applyLibrarySearchFilter as _applyLibrarySearchFilter,
 } from '../../assets/js/songDisplay.js';
 
 let rootElement = null;
@@ -1499,65 +1504,13 @@ export async function unmount() {
 
 // buildSongSearchText — imported from songDisplay.js
 
-function applyLibrarySearchFilter() {
-    if (!libraryListContainer) {
-        return;
-    }
+// applyLibrarySearchFilter, updateLibraryItemVisibility — imported from songDisplay.js
 
+function applyLibrarySearchFilter() {
     const query = typeof librarySearchInput?.value === 'string'
         ? normalizeSearchText(librarySearchInput.value)
         : '';
-
-    Array.from(libraryListContainer.children).forEach((item) => {
-        if (item instanceof Element && item.tagName === 'LI') {
-            updateLibraryItemVisibility(item, query);
-        }
-    });
-}
-
-function updateLibraryItemVisibility(item, query) {
-    const searchActive = Boolean(query);
-    const kind = item.dataset.libraryKind;
-
-    if (kind === 'song') {
-        const searchableText = item.dataset.librarySearchText || '';
-        const matches = !searchActive || searchableText.includes(query);
-        item.hidden = !matches;
-        return matches;
-    }
-
-    const details = item.querySelector(':scope > details');
-    const childList = item.querySelector(':scope > details > ul');
-    let hasVisibleChild = false;
-
-    Array.from(childList?.children || []).forEach((child) => {
-        if (child instanceof Element && child.tagName === 'LI') {
-            if (updateLibraryItemVisibility(child, query)) {
-                hasVisibleChild = true;
-            }
-        }
-    });
-
-    if (searchActive) {
-        item.hidden = !hasVisibleChild;
-
-        if (details && hasVisibleChild) {
-            if (!Object.prototype.hasOwnProperty.call(details.dataset, 'searchOriginalOpen')) {
-                details.dataset.searchOriginalOpen = details.open ? 'true' : 'false';
-            }
-
-            details.open = true;
-        }
-    } else {
-        item.hidden = false;
-
-        if (details && Object.prototype.hasOwnProperty.call(details.dataset, 'searchOriginalOpen')) {
-            details.open = details.dataset.searchOriginalOpen === 'true';
-            delete details.dataset.searchOriginalOpen;
-        }
-    }
-
-    return !searchActive || hasVisibleChild;
+    _applyLibrarySearchFilter(libraryListContainer, query);
 }
 
 function createFavoritesList(favorites) {
@@ -1620,7 +1573,7 @@ function createFileList(files, container) {
             details.dataset.collectionId = file.collectionId ?? '';
 
             li.appendChild(details);
-            enableFolderToggleFallback(details, summary);
+            enableFolderToggleFallback(details, summary, () => currentSongPath);
 
             createFileList(file.children, ul);
             ensureLibrarySortable(ul);
@@ -1715,7 +1668,7 @@ function createFavoriteFolderItem(favorite, options = {}) {
     li.appendChild(details);
 
     enableFavoriteFolderDropOpen(details, summary);
-    enableFolderToggleFallback(details, summary);
+    enableFolderToggleFallback(details, summary, () => currentSongPath);
     if (isEditing) {
         details.open = true;
         setTimeout(() => {
@@ -2084,67 +2037,7 @@ function enableFavoriteFolderDropOpen(details, summary) {
     summary.addEventListener('dragover', openFolder);
 }
 
-function handleFolderToggle(details, isNowOpen) {
-    if (!currentSongPath) return;
-
-    const ul = details.querySelector(':scope > ul');
-    if (!ul) return;
-
-    const folderLi = details.parentElement;
-    if (!folderLi) return;
-
-    const parentUl = folderLi.parentElement;
-    if (!parentUl) return;
-
-    if (!isNowOpen) {
-        const activeLi = ul.querySelector(`li[data-song-path="${CSS.escape(currentSongPath)}"]`);
-        if (!activeLi) return;
-
-        activeLi.dataset.pinnedIndex = Array.from(ul.children).indexOf(activeLi);
-        activeLi.dataset.pinnedSong = 'true';
-        activeLi.dataset.pinnedCollectionId = details.dataset.collectionId ?? '';
-        activeLi.classList.add('library-pinned-song');
-        parentUl.insertBefore(activeLi, folderLi.nextSibling);
-    } else {
-        const pinnedLi = parentUl.querySelector(':scope > li[data-pinned-song="true"]');
-        if (!pinnedLi) return;
-        if (pinnedLi.dataset.pinnedCollectionId !== details.dataset.collectionId) return;
-
-        const index = parseInt(pinnedLi.dataset.pinnedIndex, 10);
-        const refNode = Number.isInteger(index) ? Array.from(ul.children)[index] ?? null : null;
-        ul.insertBefore(pinnedLi, refNode);
-
-        pinnedLi.classList.remove('library-pinned-song');
-        delete pinnedLi.dataset.pinnedSong;
-        delete pinnedLi.dataset.pinnedIndex;
-        delete pinnedLi.dataset.pinnedCollectionId;
-    }
-}
-
-function enableFolderToggleFallback(details, summary) {
-    if (!details || !summary) {
-        return;
-    }
-
-    summary.addEventListener('click', (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-
-        if (target?.closest('input, button, textarea, select, a')) {
-            return;
-        }
-
-        event.preventDefault();
-        const willOpen = !details.open;
-        details.open = willOpen;
-        handleFolderToggle(details, willOpen);
-    });
-
-    summary.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-        }
-    });
-}
+// handleFolderToggle, enableFolderToggleFallback — imported from songDisplay.js
 
 function scheduleFavoritesSave() {
     if (favoritesSaveTimer) {
@@ -2216,34 +2109,14 @@ function serializeFavorites(rootList) {
         .filter(Boolean);
 }
 
-function unpinActiveSong() {
-    const pinnedLi = libraryListContainer?.querySelector('li[data-pinned-song="true"]');
-    if (!pinnedLi) return;
-
-    const collectionId = pinnedLi.dataset.pinnedCollectionId;
-    const folderDetails = libraryListContainer.querySelector(
-        `details[data-collection-id="${CSS.escape(collectionId)}"]`
-    );
-    const ul = folderDetails?.querySelector(':scope > ul');
-
-    if (ul) {
-        const index = parseInt(pinnedLi.dataset.pinnedIndex, 10);
-        const refNode = Number.isInteger(index) ? Array.from(ul.children)[index] ?? null : null;
-        ul.insertBefore(pinnedLi, refNode);
-    }
-
-    pinnedLi.classList.remove('library-pinned-song');
-    delete pinnedLi.dataset.pinnedSong;
-    delete pinnedLi.dataset.pinnedIndex;
-    delete pinnedLi.dataset.pinnedCollectionId;
-}
+// unpinActiveSong — imported from songDisplay.js
 
 function loadSong(songPath) {
     if (!songPath) {
         return;
     }
 
-    unpinActiveSong();
+    unpinActiveSong(libraryListContainer);
 
     try {
         setEditMode(false);

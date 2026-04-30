@@ -25,6 +25,9 @@ import {
     renderSongHeader,
     renderSongView,
     applyPreviewPreferences,
+    enableFolderToggleFallback,
+    unpinActiveSong,
+    applyLibrarySearchFilter as _applyLibrarySearchFilter,
 } from '/assets/js/songDisplay.js';
 
 // ---------------------------------------------------------------------------
@@ -287,6 +290,7 @@ function showSongPlaceholder() {
 
 async function loadSong(songPath) {
     if (!songPath) return;
+    unpinActiveSong(libraryUl);
     try {
         const res = await fetch(`/api/song?path=${encodeURIComponent(songPath)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -339,8 +343,12 @@ function renderLibrary(state) {
 
 function renderCollectionNode(collection) {
     const li = document.createElement('li');
+    li.dataset.libraryKind = 'folder';
     const details = document.createElement('details');
     const summary = document.createElement('summary');
+
+    // data-collection-id is read by handleFolderToggle to guard pin/unpin
+    details.dataset.collectionId = collection.id ?? collection.name ?? '';
 
     const iconSpan = document.createElement('span');
     iconSpan.innerHTML = ICON_FOLDER;
@@ -356,11 +364,14 @@ function renderCollectionNode(collection) {
     details.appendChild(childUl);
     li.appendChild(details);
     libraryUl.appendChild(li);
+
+    enableFolderToggleFallback(details, summary, () => currentSongPath);
 }
 
 function renderSongNode(parentUl, node, songsById) {
     const song = songsById[node.id] || node;
     const li = document.createElement('li');
+    li.dataset.libraryKind = 'song';
     li.setAttribute('data-song-path', node.path);
     li.setAttribute('data-song-id', node.id || '');
     li.setAttribute('data-library-search-text', buildSongSearchText(song, node.name));
@@ -387,11 +398,11 @@ function renderSongNode(parentUl, node, songsById) {
 }
 
 function pinActiveSongInLibrary(songPath) {
-    libraryUl.querySelectorAll('li[data-song-path] a').forEach((el) => el.classList.remove('active'));
+    libraryUl.querySelectorAll('li[data-song-path] a').forEach((el) => el.classList.remove('menu-active'));
     if (!songPath) return;
     const target = libraryUl.querySelector(`li[data-song-path="${CSS.escape(songPath)}"]`);
     if (target) {
-        target.querySelector('a')?.classList.add('active');
+        target.querySelector('a')?.classList.add('menu-active');
         const parentDetails = target.closest('details');
         if (parentDetails) parentDetails.open = true;
     }
@@ -403,31 +414,8 @@ function pinActiveSongInLibrary(songPath) {
 
 function applyLibrarySearchFilter() {
     const query = normalizeSearchText(librarySearch.value);
-
-    if (!query) {
-        libraryUl.querySelectorAll('li[data-song-path]').forEach((el) => { el.hidden = false; });
-        libraryUl.querySelectorAll('details').forEach((el) => { el.hidden = false; });
-        setSearchIcon(false);
-        return;
-    }
-
-    setSearchIcon(true);
-
-    libraryUl.querySelectorAll('details').forEach((details) => {
-        let anyVisible = false;
-        details.querySelectorAll('li[data-song-path]').forEach((li) => {
-            const text = li.getAttribute('data-library-search-text') || '';
-            const match = text.includes(query);
-            li.hidden = !match;
-            if (match) { anyVisible = true; details.open = true; }
-        });
-        details.hidden = !anyVisible;
-    });
-
-    libraryUl.querySelectorAll(':scope > li[data-song-path]').forEach((li) => {
-        const text = li.getAttribute('data-library-search-text') || '';
-        li.hidden = !text.includes(query);
-    });
+    _applyLibrarySearchFilter(libraryUl, query);
+    setSearchIcon(Boolean(query));
 }
 
 function setSearchIcon(isSearching) {

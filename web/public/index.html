@@ -7,63 +7,6 @@
     <title>Beamee</title>
     <link rel="stylesheet" href="css/output.css">
     <link rel="icon" type="image/x-icon" href="/img/beamee-icon.ico">
-    <style>
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-        }
-
-        /* 3-column grid — mirrors the Electron layout */
-        .wrapper {
-            display: grid;
-            grid-template-columns: clamp(200px, 20%, 350px) 1fr clamp(200px, 20%, 500px);
-            grid-template-rows: 1fr max-content;
-            gap: 0;
-            grid-auto-flow: row;
-            grid-template-areas:
-                "sidebar verse-display preview-box"
-                "sidebar controls controls";
-            width: 100%;
-            height: 100vh;
-        }
-
-        .sidebar {
-            grid-area: sidebar;
-        }
-
-        .controls {
-            grid-area: controls;
-        }
-
-        .preview-box {
-            grid-area: preview-box;
-        }
-
-        #verse-display {
-            grid-area: verse-display;
-            overflow-y: scroll;
-            max-width: 100%;
-        }
-
-        #preview-box {
-            min-height: 0;
-        }
-
-        #preview {
-            position: relative;
-            min-height: 0;
-            overflow: hidden;
-            aspect-ratio: 16 / 9;
-        }
-
-        #preview-lyrics {
-            width: 100%;
-            height: 100%;
-            box-sizing: border-box;
-        }
-    </style>
 </head>
 
 <body id="main" class="h-screen overflow-hidden">
