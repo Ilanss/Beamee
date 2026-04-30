@@ -27,6 +27,7 @@
                 <label id="library-search-wrap"
                     class="flex items-center my-2 input input-sm input-border flex w-auto items-center gap-2">
                     <input id="library-search" type="text" placeholder="Search"
+                        data-i18n-placeholder="library.search.placeholder"
                         class="w-full h-full outline-none text-sm">
                     <div id="search-icon" class="h-full flex items-center cursor-pointer">
                         <!-- search SVG, swapped to X when active -->
@@ -40,7 +41,7 @@
 
                 <!-- Library heading -->
                 <div class="flex justify-between items-center gap-2 pb-2">
-                    <h2 class="prose">Library</h2>
+                    <h2 class="prose" data-i18n="library.title">Library</h2>
                 </div>
 
                 <!-- Library tree -->
@@ -64,7 +65,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round"
                                 d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
                         </svg>
-                        Select a song
+                        <span data-i18n="library.selectSong">Select a song</span>
                     </p>
                 </li>
             </ul>
@@ -79,7 +80,7 @@
                 <fieldset>
                     <label class="label">
                         <input id="arrangement" type="checkbox" checked class="checkbox" />
-                        <span>Use arrangement</span>
+                        <span data-i18n="library.useArrangement">Use arrangement</span>
                     </label>
                 </fieldset>
             </div>

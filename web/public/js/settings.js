@@ -1,5 +1,3 @@
-'use strict';
-
 // ---------------------------------------------------------------------------
 // Beamee Web — Settings page controller
 //
@@ -11,6 +9,15 @@
 // - Theme cards, projection form, save/reset/restore all work identically
 // - Saved preferences are broadcast via WebSocket so the projector updates live
 // ---------------------------------------------------------------------------
+
+import { resolveLanguage, loadLocale, t, applyTranslations } from '/assets/js/i18n.js';
+
+/** Web loader: fetches /locales/<lang>.json and returns its text. */
+async function webLocaleLoader(lang) {
+    const res = await fetch(`/locales/${lang}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+}
 
 const STORAGE_KEY = 'beamee_preferences';
 
@@ -247,7 +254,7 @@ function loadMenu(menuPage) {
 function applyBackgroundImageToForm(backgroundImage) {
     const hasImage = typeof backgroundImage === 'string' && backgroundImage.trim();
     if (backgroundImageNameEl) {
-        backgroundImageNameEl.textContent = hasImage ? backgroundImage : 'No image set';
+        backgroundImageNameEl.textContent = hasImage ? backgroundImage : t('settings.projection.backgroundImage.noImage');
         backgroundImageNameEl.classList.toggle('opacity-50', !hasImage);
     }
 }
@@ -330,7 +337,7 @@ function mergeAndSave(updates) {
 
 function savePreferencesFromForm() {
     try {
-        showStatus('Saving...');
+        showStatus(t('settings.projection.saving'));
         const updates = currentMenuPage === 'settings-appearence'
             ? readAppearencePreferences()
             : readProjectionPreferences();
@@ -338,10 +345,10 @@ function savePreferencesFromForm() {
         const saved = mergeAndSave(updates);
         applyPreferencesToForm(saved);
         setDirty(false);
-        showStatus('Preferences saved.');
+        showStatus(t('settings.projection.saved'));
     } catch (err) {
         console.error('Failed to save preferences', err);
-        showStatus('Failed to save preferences.', true);
+        showStatus(t('settings.projection.saveFailed'), true);
     }
 }
 
@@ -367,7 +374,7 @@ async function init() {
         if (menuPage === currentMenuPage) return;
 
         if (isDirty) {
-            if (!window.confirm('You have unsaved changes. Leave without saving?')) return;
+            if (!window.confirm(t('dialog.unsavedChangesWeb'))) return;
             if (currentPreferences) applyPreferencesToForm(currentPreferences);
         }
 
@@ -397,11 +404,21 @@ async function init() {
     projectionForm.addEventListener('input', () => setDirty(true));
     projectionForm.addEventListener('change', () => setDirty(true));
 
-    // --- Language: save immediately on change ---
+    // --- Language: save and apply immediately on change ---
     if (languageSelect) {
-        languageSelect.addEventListener('change', () => {
-            mergeAndSave({ language: languageSelect.value });
-            showStatus('Language saved.');
+        languageSelect.addEventListener('change', async () => {
+            const newLang = languageSelect.value;
+            mergeAndSave({ language: newLang });
+
+            // Reload the catalogue and re-translate this settings page immediately.
+            await loadLocale(resolveLanguage(newLang, navigator.language), webLocaleLoader);
+            applyTranslations(document.body);
+
+            // Tell the parent control page to reload its locale too.
+            const target = (window.parent && window.parent !== window) ? window.parent : window;
+            target.dispatchEvent(new CustomEvent('beameeLanguageChanged', { detail: { language: newLang } }));
+
+            showStatus(t('settings.general.language.saved'));
         });
     }
 
@@ -430,7 +447,7 @@ async function init() {
     // --- Restore Defaults: pull server defaults, save to localStorage ---
     restoreDefaultsButton.addEventListener('click', async () => {
         try {
-            showStatus('Restoring defaults...');
+            showStatus(t('settings.about.restoring'));
             const res = await fetch('/api/preferences');
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const serverDefaults = await res.json();
@@ -441,20 +458,21 @@ async function init() {
             );
             applyPreferencesToForm(saved);
             setDirty(false);
-            showStatus('Defaults restored.');
+            showStatus(t('settings.about.restored'));
         } catch (err) {
             console.error('Failed to restore defaults', err);
-            showStatus('Failed to restore defaults.', true);
+            showStatus(t('settings.about.restoreFailed'), true);
         }
     });
 
     // --- Close button ---
     if (closeButton) {
         closeButton.addEventListener('click', () => {
-            if (isDirty && !window.confirm('You have unsaved changes. Leave without saving?')) return;
-            // Navigate back: if embedded via iframe/include use event, if standalone page go back
-            window.dispatchEvent(new CustomEvent('beameeSettingsClose'));
-            if (window.history.length > 1) window.history.back();
+            if (isDirty && !window.confirm(t('dialog.unsavedChangesWeb'))) return;
+            // Dispatch on the parent window so control.js receives it regardless
+            // of when the iframe finished loading (avoids the load-event race).
+            const target = (window.parent && window.parent !== window) ? window.parent : window;
+            target.dispatchEvent(new CustomEvent('beameeSettingsClose'));
         });
     }
 
@@ -467,6 +485,7 @@ async function init() {
     });
 
     // --- Load preferences: localStorage first, fall back to /api/preferences ---
+    let loadedPrefs = null;
     try {
         let prefs = loadStoredPreferences();
         if (!prefs) {
@@ -474,12 +493,18 @@ async function init() {
             if (res.ok) prefs = await res.json();
         }
         if (prefs) {
+            loadedPrefs = prefs;
             applyPreferencesToForm(prefs);
         }
     } catch (err) {
         console.error('Failed to load preferences', err);
-        showStatus('Failed to load preferences.', true);
+        showStatus(t('settings.projection.loadFailed'), true);
     }
+
+    // --- Load locale and apply translations to the whole page ---
+    const lang = resolveLanguage(loadedPrefs?.language, navigator.language);
+    await loadLocale(lang, webLocaleLoader).catch(() => {});
+    applyTranslations(document.body);
 
     updateActionBarVisibility();
 }

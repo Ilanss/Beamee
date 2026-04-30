@@ -13,6 +13,7 @@
   "settings.general.title": "General",
   "settings.general.language.legend": "Language",
   "settings.general.language.label": "App Language",
+  "settings.general.language.saved": "Language saved.",
   "settings.general.updates.legend": "Updates",
   "settings.general.updates.currentVersion": "Current version:",
   "settings.general.updates.checkButton": "Check for update...",
@@ -36,6 +37,7 @@
   "settings.projection.colors.background": "Background Color",
   "settings.projection.backgroundImage.legend": "Background image",
   "settings.projection.backgroundImage.noImage": "No image set",
+  "settings.projection.backgroundImage.serverNote": "Background image can be configured in preferences.json on the server.",
   "settings.projection.backgroundImage.remove": "Remove",
   "settings.projection.backgroundImage.choose": "Choose image...",
   "settings.projection.backgroundImage.opening": "Opening file picker...",
@@ -59,8 +61,9 @@
   "settings.appearance.systemDesc": "Follow OS preference",
 
   "settings.about.title": "About Beamee",
-  "settings.about.description1": "Beamee is an open-source app for projecting song lyrics — built with web tech, so it runs anywhere.",
-  "settings.about.description2": "It's built to stay lean and last. No feature bloat — just the stuff that matters, done right.",
+  "settings.about.description1": "Beamee is an open-source app for projecting song lyrics — built with web tech, so it runs anywhere. It's built to stay lean and last. No feature bloat — just the stuff that matters, done right.",
+  "settings.about.description2": "Using the app is free but doesn't provide rights for projecting in public. You must get a licence from rightholders like LTC-Asaph for example.",
+  "settings.about.descriptionWeb": "The web version of Beamee is limited in features. If you want access to song edition, favorites system and other, download the desktop version from Github release.",
   "settings.about.github": "See project on GitHub",
   "settings.about.kofi": "Support me on Ko-fi",
   "settings.about.restoreDefaults": "Restore Defaults",
@@ -78,6 +81,7 @@
   "library.createPlaylist.tooltip": "Create a new playlist",
   "library.selectSong": "Select a song",
   "library.useArrangement": "Use arrangement",
+  "library.empty": "Library is empty.",
 
   "editor.addSection": "+ Add section",
   "editor.arrangementTitle": "Arrangement maker",
@@ -144,6 +148,7 @@
   "contextMenu.deleteFromFavorites": "Delete from Favorites",
 
   "dialog.ok": "OK",
+  "dialog.unsavedChangesWeb": "You have unsaved changes. Leave without saving?",
   "dialog.unsavedChanges.title": "Unsaved changes",
   "dialog.unsavedChanges.message": "This song has unsaved changes.",
   "dialog.unsavedChanges.detail": "Do you want to discard them, save them, or stay in the editor?",

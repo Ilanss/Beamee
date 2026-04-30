@@ -2,17 +2,16 @@
   "lang.system": "Système (auto-détection)",
   "lang.en": "Anglais",
   "lang.fr": "Français",
-
   "settings.title": "Préférences",
   "settings.nav.general": "Général",
   "settings.nav.projection": "Projection",
   "settings.nav.appearance": "Apparence",
   "settings.nav.about": "À propos",
   "settings.close": "Fermer",
-
   "settings.general.title": "Général",
   "settings.general.language.legend": "Langue",
   "settings.general.language.label": "Langue de l'application",
+  "settings.general.language.saved": "Langue enregistrée.",
   "settings.general.updates.legend": "Mises à jour",
   "settings.general.updates.currentVersion": "Version actuelle :",
   "settings.general.updates.checkButton": "Rechercher une mise à jour...",
@@ -24,7 +23,6 @@
   "settings.general.updates.downloading": "Téléchargement... {percent}%",
   "settings.general.updates.ready": "Mise à jour prête à installer.",
   "settings.general.updates.error": "Échec de la vérification des mises à jour.",
-
   "settings.projection.title": "Projection",
   "settings.projection.font.legend": "Police",
   "settings.projection.font.family": "Famille de police",
@@ -36,6 +34,7 @@
   "settings.projection.colors.background": "Couleur d'arrière-plan",
   "settings.projection.backgroundImage.legend": "Image d'arrière-plan",
   "settings.projection.backgroundImage.noImage": "Aucune image",
+  "settings.projection.backgroundImage.serverNote": "L'image de fond peut être configurée dans preferences.json sur le serveur.",
   "settings.projection.backgroundImage.remove": "Supprimer",
   "settings.projection.backgroundImage.choose": "Choisir une image...",
   "settings.projection.backgroundImage.opening": "Ouverture du sélecteur de fichier...",
@@ -53,14 +52,13 @@
   "settings.projection.saved": "Préférences enregistrées.",
   "settings.projection.saveFailed": "Échec de l'enregistrement des préférences.",
   "settings.projection.loadFailed": "Échec du chargement des préférences.",
-
   "settings.appearance.title": "Apparence",
   "settings.appearance.system": "Système",
   "settings.appearance.systemDesc": "Suivre la préférence du système",
-
   "settings.about.title": "À propos de Beamee",
-  "settings.about.description1": "Beamee est une app open source pour projeter des paroles de chansons — construite avec des technologies web, donc elle tourne partout.",
-  "settings.about.description2": "L'idée : rester léger et durer dans le temps. Pas de fonctionnalités superflues — juste l'essentiel, bien fait.",
+  "settings.about.description1": "Beamee est une app open source pour projeter des paroles de chansons — construite avec des technologies web, donc elle tourne partout. L'idée : rester léger et durer dans le temps. Pas de fonctionnalités superflues — juste l'essentiel, bien fait.",
+  "settings.about.description2": "L'utilisation de l'application est gratuit mais ne vous procure pas le droit de projeter les paroles en public. Vous devez acquérir une licence auprès des ayant droit tel que LTC-Asaph.",
+  "settings.about.descriptionWeb": "La version web de Beamme est limitée. Si vous voulez accéder à l'édition de chants, au système de favoris et autre vous pouvez télécharger la version de bureau depuis Github.",
   "settings.about.github": "Voir le projet sur GitHub",
   "settings.about.kofi": "Me soutenir sur Ko-fi",
   "settings.about.restoreDefaults": "Restaurer les valeurs par défaut",
@@ -68,7 +66,6 @@
   "settings.about.restoring": "Restauration en cours...",
   "settings.about.restored": "Valeurs par défaut restaurées.",
   "settings.about.restoreFailed": "Échec de la restauration des valeurs par défaut.",
-
   "library.title": "Bibliothèque",
   "library.favorites": "Favoris",
   "library.search.placeholder": "Rechercher",
@@ -78,7 +75,7 @@
   "library.createPlaylist.tooltip": "Créer une nouvelle liste",
   "library.selectSong": "Sélectionner un chant",
   "library.useArrangement": "Utiliser l'arrangement",
-
+  "library.empty": "La bibliothèque est vide.",
   "editor.addSection": "+ Ajouter une section",
   "editor.arrangementTitle": "Éditeur d'arrangement",
   "editor.addArrangementItem": "+ Ajouter un élément",
@@ -98,11 +95,9 @@
   "editor.cancel": "Annuler",
   "editor.saveFailed": "Impossible d'enregistrer le chant.",
   "editor.favoritesSaveFailed": "Impossible d'enregistrer les favoris.",
-
   "favorites.deleteConfirm": "Supprimer ce favori ?",
   "favorites.folderNamePlaceholder": "Nom du dossier",
   "favorites.songNamePlaceholder": "Nom du chant",
-
   "sectionType.verse": "Couplet",
   "sectionType.chorus": "Refrain",
   "sectionType.pre-chorus": "Pré-refrain",
@@ -111,7 +106,6 @@
   "sectionType.outro": "Outro",
   "sectionType.tag": "Tag",
   "sectionType.other": "Autre",
-
   "menu.file": "Fichier",
   "menu.importSongs": "Importer des chants...",
   "menu.importSongFolder": "Importer un dossier...",
@@ -132,7 +126,6 @@
   "menu.chorus": "Refrain",
   "menu.blackScreen": "Écran noir",
   "menu.verse": "Verset {n}",
-
   "contextMenu.rename": "Renommer",
   "contextMenu.delete": "Supprimer",
   "contextMenu.addToFavorites": "Ajouter aux favoris",
@@ -142,8 +135,8 @@
   "contextMenu.exportCollectionZip": "Exporter le recueil (Zip)",
   "contextMenu.deleteCollection": "Supprimer le recueil",
   "contextMenu.deleteFromFavorites": "Retirer des favoris",
-
   "dialog.ok": "OK",
+  "dialog.unsavedChangesWeb": "Vous avez des modifications non enregistrées. Quitter sans sauvegarder ?",
   "dialog.unsavedChanges.title": "Modifications non enregistrées",
   "dialog.unsavedChanges.message": "Ce chant a des modifications non enregistrées.",
   "dialog.unsavedChanges.detail": "Voulez-vous les ignorer, les enregistrer ou rester dans l'éditeur ?",

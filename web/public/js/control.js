@@ -30,6 +30,15 @@ import {
     applyLibrarySearchFilter as _applyLibrarySearchFilter,
 } from '/assets/js/songDisplay.js';
 
+import { resolveLanguage, loadLocale, t, applyTranslations } from '/assets/js/i18n.js';
+
+/** Web loader: fetches /locales/<lang>.json and returns its text. */
+async function webLocaleLoader(lang) {
+    const res = await fetch(`/locales/${lang}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+}
+
 // ---------------------------------------------------------------------------
 // localStorage helpers
 // ---------------------------------------------------------------------------
@@ -327,7 +336,7 @@ function renderLibrary(state) {
     if (!state || !Array.isArray(state.tree) || state.tree.length === 0) {
         const empty = document.createElement('li');
         empty.className = 'p-2 opacity-60 text-sm';
-        empty.textContent = 'Library is empty.';
+        empty.textContent = t('library.empty');
         libraryUl.appendChild(empty);
         return;
     }
@@ -506,17 +515,20 @@ const settingsIframe = document.getElementById('settings-iframe');
 
 if (settingsBtn && settingsView) {
     settingsBtn.addEventListener('click', () => { settingsView.hidden = false; });
-
-    if (settingsIframe) {
-        settingsIframe.addEventListener('load', () => {
-            try {
-                settingsIframe.contentWindow.addEventListener('beameeSettingsClose', () => {
-                    settingsView.hidden = true;
-                });
-            } catch { /* cross-origin guard */ }
-        });
-    }
 }
+
+// settings.js dispatches beameeSettingsClose on window.parent (this window),
+// so we listen here directly — no iframe load-event timing required.
+window.addEventListener('beameeSettingsClose', () => {
+    if (settingsView) settingsView.hidden = true;
+});
+
+// Re-translate the whole control page when the user changes language in settings.
+window.addEventListener('beameeLanguageChanged', async (e) => {
+    const lang = resolveLanguage(e.detail?.language, navigator.language);
+    await loadLocale(lang, webLocaleLoader);
+    applyTranslations(document.body);
+});
 
 // Re-apply preferences whenever settings.js saves
 window.addEventListener('beameePreferencesChanged', (e) => {
@@ -559,6 +571,13 @@ async function init() {
             document.documentElement.setAttribute('data-theme', resolveTheme(prefs.theme));
         }
     }
+
+    // Load locale before rendering the library so t() calls and data-i18n
+    // attributes both resolve correctly. navigator.language replaces Electron's
+    // app.getLocale() — both produce BCP-47 tags like 'fr-CA'.
+    const lang = resolveLanguage(prefs?.language, navigator.language);
+    await loadLocale(lang, webLocaleLoader).catch(() => {});
+    applyTranslations(document.body);
 
     const libRes = await libResPromise;
     if (libRes?.ok) {

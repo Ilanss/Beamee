@@ -60,9 +60,13 @@ app.use(express.json());
 // Static files: public/
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Shared JS modules from assets/js/ (songDisplay.js etc.) served as ES modules.
+// Shared JS modules from assets/js/ (songDisplay.js, i18n.js etc.) served as ES modules.
 // The Dockerfile already copies assets/js/ into the image alongside web/.
 app.use('/assets/js', express.static(path.join(__dirname, '../assets/js')));
+
+// Locale JSON files served from the single source of truth in renderer/locales/.
+// The Dockerfile copies the full repo context so this path is always available.
+app.use('/locales', express.static(path.join(__dirname, '../renderer/locales')));
 
 // ---------------------------------------------------------------------------
 // API routes (all read-only)

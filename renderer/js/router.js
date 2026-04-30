@@ -1,5 +1,5 @@
 import { resolveTheme } from './themeUtils.js';
-import { loadLocale, resolveLanguage } from './i18n.js';
+import { loadLocale, resolveLanguage, electronLocaleLoader } from './i18n.js';
 
 const ROUTES = {
   library: {
@@ -190,17 +190,18 @@ window.addEventListener('hashchange', () => {
 window.addEventListener('DOMContentLoaded', () => {
   // Apply the saved theme and language before the first view renders to avoid
   // a visible flash of English/default content on non-English systems.
-  ipcRenderer.invoke('get-preferences').then((preferences) => {
+  ipcRenderer.invoke('get-preferences').then(async (preferences) => {
     const theme = preferences?.theme;
     if (typeof theme === 'string' && theme) {
       document.documentElement.setAttribute('data-theme', resolveTheme(theme));
     }
 
     const lang = resolveLanguage(preferences?.language, preferences?.osLocale);
-    loadLocale(lang);
-  }).catch(() => {
+    // Await so the catalogue is fully populated before renderRoute runs.
+    await loadLocale(lang, electronLocaleLoader);
+  }).catch(async () => {
     // Silently fall back to the default locale if preferences cannot be read.
-    loadLocale('en');
+    await loadLocale('en', electronLocaleLoader);
   }).finally(() => {
     if (!window.location.hash) {
       navigate('library', { replace: true });
