@@ -1,5 +1,18 @@
 import { resolveTheme } from './themeUtils.js';
 import { applyTranslations, t } from './i18n.js';
+import {
+    expandSongForProjection,
+    normalizeSearchText,
+    buildSongSearchText,
+    appendTextWithLineBreaks,
+    setToggleProjectionIcon as _setToggleProjectionIcon,
+    setActiveVerseHighlight as _setActiveVerseHighlight,
+    renderSongHeader as _renderSongHeader,
+    renderSongView as _renderSongView,
+    applyPreviewPreferences as _applyPreviewPreferences,
+    deriveCollectionPrefix,
+    buildCollectionSearchAliases,
+} from '../../assets/js/songDisplay.js';
 
 let rootElement = null;
 let toggleProjectionButton = null;
@@ -108,35 +121,12 @@ function toggleProjection() {
     ipcRenderer.send('projection:toggle');
 }
 
-function normalizeSearchText(value) {
-    return String(value ?? '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '');
-}
+// normalizeSearchText, appendTextWithLineBreaks — imported from songDisplay.js
 
 function addSearchPart(parts, value) {
     if (typeof value === 'string' && value.trim()) {
         parts.push(value.trim());
     }
-}
-
-function appendTextWithLineBreaks(parent, value) {
-    if (!parent) {
-        return;
-    }
-
-    const text = String(value ?? '');
-    const lines = text.split('\n');
-
-    lines.forEach((line, index) => {
-        if (index > 0) {
-            parent.appendChild(document.createElement('br'));
-        }
-
-        parent.appendChild(document.createTextNode(line));
-    });
 }
 
 function getCurrentProjectedVerse() {
@@ -535,66 +525,15 @@ function setLibrarySearchIcon(isSearching) {
     librarySearchIcon.setAttribute('aria-label', isSearching ? t('library.search.clear') : t('library.search.ariaLabel'));
 }
 
-function deriveCollectionPrefix(value) {
-    if (typeof value !== 'string') {
-        return '';
-    }
-
-    const trimmed = value.trim();
-    if (!trimmed) {
-        return '';
-    }
-
-    return trimmed.replace(/(?:[-_\s]*\d+)$/, '');
-}
-
-function buildCollectionSearchAliases(collection) {
-    const aliases = [];
-    const prefixCandidates = [
-        collection?.reference,
-        deriveCollectionPrefix(collection?.collectionId),
-        collection?.collectionId,
-        collection?.name,
-    ];
-    const number = Number.isInteger(collection?.number) && collection.number > 0
-        ? String(collection.number)
-        : '';
-
-    prefixCandidates.forEach((prefix) => {
-        if (typeof prefix !== 'string' || !prefix.trim()) {
-            return;
-        }
-
-        const normalizedPrefix = prefix.trim();
-        aliases.push(normalizedPrefix);
-
-        if (number) {
-            aliases.push(`${normalizedPrefix} ${number}`);
-            aliases.push(`${normalizedPrefix}-${number}`);
-            aliases.push(`${normalizedPrefix}${number}`);
-        }
-    });
-
-    return aliases;
-}
+// deriveCollectionPrefix, buildCollectionSearchAliases, setToggleProjectionIcon
+// — imported from songDisplay.js
 
 function setToggleProjectionIcon(isProjectionOn) {
-    if (!toggleProjectionButton) {
-        return;
-    }
-
-    if (isProjectionOn) {
-        toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><rect width="10" height="10" x="3" y="3" rx="1.5" /></svg>';
-        return;
-    }
-
-    toggleProjectionButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-4"><path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z" /></svg>';
+    _setToggleProjectionIcon(toggleProjectionButton, isProjectionOn);
 }
 
 function applyPreviewPreferences(preferences) {
-    if (!previewContent || !preferences) {
-        return;
-    }
+    if (!previewContent || !preferences) return;
 
     currentPreferences = preferences;
     currentUseArrangement = preferences.useArrangement !== false;
@@ -603,26 +542,14 @@ function applyPreviewPreferences(preferences) {
         arrangementCheckbox.checked = currentUseArrangement;
     }
 
-    previewContent.style.fontFamily = preferences.fontFamily;
-    const previewWidth = previewContent.offsetWidth || 1280;
-    previewContent.style.fontSize = `${preferences.fontSize * (previewWidth / 1280)}px`;
-    previewContent.style.color = preferences.textColor;
-    previewContent.style.backgroundColor = preferences.backgroundColor;
-    previewContent.style.lineHeight = String(preferences.lineHeight);
-    previewContent.style.paddingTop = `${preferences.paddingTop}px`;
-    previewContent.style.paddingBottom = `${preferences.paddingBottom}px`;
-    previewContent.style.paddingLeft = `${preferences.paddingLeft}px`;
-    previewContent.style.paddingRight = `${preferences.paddingRight}px`;
-
-    if (preferences.backgroundImage) {
-        previewContent.style.backgroundImage = `url('beamee-asset://${preferences.backgroundImage}')`;
-        previewContent.style.backgroundSize = 'cover';
-        previewContent.style.backgroundPosition = 'center';
-    } else {
-        previewContent.style.backgroundImage = '';
-        previewContent.style.backgroundSize = '';
-        previewContent.style.backgroundPosition = '';
-    }
+    // Electron uses the beamee-asset:// custom protocol for background images.
+    _applyPreviewPreferences(
+        {
+            previewEl: previewContent,
+            backgroundImageUrl: (filename) => `beamee-asset://${filename}`,
+        },
+        preferences,
+    );
 
     if (preferences.theme) {
         document.documentElement.setAttribute('data-theme', resolveTheme(preferences.theme));
@@ -630,46 +557,25 @@ function applyPreviewPreferences(preferences) {
 }
 
 function renderSongView(songData) {
-    if (!main) {
-        return;
-    }
+    if (!main) return;
 
-    const verses = expandSongForProjection(songData, currentUseArrangement);
+    const { verses } = _renderSongView({
+        listEl:         main,
+        songData,
+        useArrangement: currentUseArrangement,
+        onVerseClick:   (i) => {
+            currentVerseIndex = i;
+            setActiveVerseHighlight(i);
+            updateProjection();
+        },
+        // Use the Electron i18n system for section type labels
+        sectionLabel: (type) => t(`sectionType.${type || 'other'}`),
+    });
 
     currentLyrics = verses;
     // currentVerseIndex is intentionally reset to undefined on every song load.
     // The projector only updates when the user explicitly clicks a verse.
     currentVerseIndex = undefined;
-
-    main.replaceChildren();
-
-    verses.forEach((verse, i) => {
-        const li = document.createElement('li');
-        const label = document.createElement('p');
-        label.className = 'mt-2 text-xs uppercase';
-        // console.log(verse.id.split("-")[1]);
-        const verseNum = verse.id.split("-")[verse.id.split("-").length - 1];
-        const displayLabel = (verse.label && verse.label !== verse.type)
-            ? verse.label
-            : t(`sectionType.${verse.type || 'other'}`);
-        label.textContent = `#${verseNum} ${displayLabel}`;
-
-        const text = document.createElement('div');
-        appendTextWithLineBreaks(text, verse.text);
-
-        li.appendChild(label);
-        li.appendChild(text);
-        li.setAttribute('id', `verse-${i}`);
-        li.classList.add('bg-base-200', 'p-2', 'px-4', 'pb-3', 'hover:bg-base-300', 'active:bg-base-300', 'rounded-field', 'cursor-pointer');
-
-        li.addEventListener('click', () => {
-            currentVerseIndex = i;
-            setActiveVerseHighlight(i);
-            updateProjection();
-        });
-
-        main.appendChild(li);
-    });
 
     ipcRenderer.send('song:loaded', verses.length);
 }
@@ -737,29 +643,17 @@ function renderSongHeader() {
     }
 
     if (currentSongData) {
-        songNameNode.textContent = currentSongData.name || '';
-        if (copyrightNode) {
-            copyrightNode.textContent = currentSongData.copyright || '';
-        }
-        songNumberNode.replaceChildren();
-        const collections = currentSongData.collections ?? [];
-        collections.forEach((col, i) => {
-            if (!col?.collectionId) return;
-            if (i > 0) songNumberNode.appendChild(document.createTextNode('  '));
-            const badge = document.createElement('span');
-            badge.textContent = col.number != null
-                ? `${String(col.collectionId).toUpperCase()} #${col.number}`
-                : String(col.collectionId).toUpperCase();
-            songNumberNode.appendChild(badge);
-        });
+        _renderSongHeader(
+            { nameEl: songNameNode, numberEl: songNumberNode, copyrightEl: copyrightNode },
+            currentSongData,
+        );
         return;
     }
 
-    songNameNode.textContent = '';
-    songNumberNode.textContent = '';
-    if (copyrightNode) {
-        copyrightNode.textContent = '';
-    }
+    _renderSongHeader(
+        { nameEl: songNameNode, numberEl: songNumberNode, copyrightEl: copyrightNode },
+        null,
+    );
 }
 
 function renderSongSectionsEditor() {
@@ -1603,26 +1497,7 @@ export async function unmount() {
     mountContext = null;
 }
 
-function buildSongSearchText(songData, fileName) {
-    const parts = [];
-
-    addSearchPart(parts, songData?.name);
-    addSearchPart(parts, songData?.id);
-
-    if (typeof fileName === 'string' && fileName.trim()) {
-        addSearchPart(parts, fileName.replace(/\.[^.]+$/, ''));
-    }
-
-    (Array.isArray(songData?.collections) ? songData.collections : []).forEach((collection) => {
-        parts.push(...buildCollectionSearchAliases(collection));
-    });
-
-    return normalizeSearchText(
-        parts
-            .filter((part) => typeof part === 'string' && part.trim())
-            .join(' '),
-    );
-}
+// buildSongSearchText — imported from songDisplay.js
 
 function applyLibrarySearchFilter() {
     if (!libraryListContainer) {
@@ -2432,45 +2307,8 @@ function renderSongPlaceholder() {
     }
 }
 
-function expandSongForProjection(songData, useArrangement = true) {
-    if (!songData || !Array.isArray(songData.sections)) {
-        return [];
-    }
+// expandSongForProjection — imported from songDisplay.js
 
-    const sectionsById = new Map(
-        songData.sections
-            .filter((section) => section && typeof section.id === 'string')
-            .map((section) => [section.id, section])
-    );
-
-    if (!useArrangement || !Array.isArray(songData.arrangement) || songData.arrangement.length === 0) {
-        return songData.sections
-            .filter((section) => section && typeof section.id === 'string')
-            .map((section) => ({
-                id: section.id,
-                type: section.type || 'other',
-                label: section.title || section.type || 'other',
-                text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
-            }));
-    }
-
-    return songData.arrangement
-        .map((step) => {
-            const section = sectionsById.get(step?.sectionId);
-
-            if (!section) {
-                return null;
-            }
-
-            return {
-                id: section.id,
-                type: section.type || 'other',
-                label: step.label || section.title || section.type || 'other',
-                text: Array.isArray(section.lines) ? section.lines.join('\n') : '',
-            };
-        })
-        .filter(Boolean);
-}
 function updateProjection() {
     if (!Array.isArray(currentLyrics) || currentVerseIndex === undefined || !currentLyrics[currentVerseIndex]) {
         if (previewLyrics) {
@@ -2496,10 +2334,7 @@ function updateProjection() {
 }
 
 function setActiveVerseHighlight(index) {
-    document.querySelectorAll("#verse-display ul li").forEach((e) => e.classList.remove("bg-base-300"));
-    if (index !== undefined) {
-        document.querySelector("#verse-" + index)?.classList.add("bg-base-300");
-    }
+    _setActiveVerseHighlight(main, index);
 }
 
 function changeToPrevVerse() {

@@ -60,6 +60,10 @@ app.use(express.json());
 // Static files: public/
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Shared JS modules from assets/js/ (songDisplay.js etc.) served as ES modules.
+// The Dockerfile already copies assets/js/ into the image alongside web/.
+app.use('/assets/js', express.static(path.join(__dirname, '../assets/js')));
+
 // ---------------------------------------------------------------------------
 // API routes (all read-only)
 // ---------------------------------------------------------------------------
