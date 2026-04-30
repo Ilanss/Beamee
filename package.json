@@ -9,7 +9,7 @@
     "watch": "electronmon .",
     "dist": "electron-builder",
     "watch-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css --watch",
-    "build-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css"
+    "build-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css && cp renderer/css/output.css web/public/css/output.css"
   },
   "author": "Ilans",
   "license": "ISC",

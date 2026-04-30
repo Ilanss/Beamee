@@ -1,0 +1,14 @@
+services:
+  beamee:
+    build:
+      context: ..        # repo root — so Dockerfile can COPY assets/js/
+      dockerfile: web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      # Uncomment and set LIBRARY_PATH + the volume below to use your own songs:
+      # - LIBRARY_PATH=/library
+    # volumes:
+    #   - /absolute/path/to/your/songs:/library:ro
+    restart: unless-stopped

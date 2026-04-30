@@ -1,0 +1,15 @@
+{
+  "fontFamily": "Arial",
+  "fontSize": 50,
+  "textColor": "#ffffff",
+  "backgroundColor": "#000000",
+  "backgroundImage": null,
+  "lineHeight": 1.5,
+  "paddingTop": 10,
+  "paddingBottom": 10,
+  "paddingLeft": 10,
+  "paddingRight": 10,
+  "useArrangement": true,
+  "theme": "dark",
+  "language": "en"
+}
