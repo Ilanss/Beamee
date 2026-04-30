@@ -84,6 +84,7 @@
   "editor.addArrangementItem": "+ Add arrangement item",
   "editor.sectionTitle.placeholder": "Section title",
   "editor.songTitle.placeholder": "Song title",
+  "editor.songCopyright.placeholder": "Copyright",
   "editor.collectionName.placeholder": "Collection name",
   "editor.collectionId.placeholder": "Collection id",
   "editor.collectionNumber.placeholder": "Collection number",
