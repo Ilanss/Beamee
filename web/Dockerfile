@@ -15,6 +15,9 @@ WORKDIR /app
 # Shared library logic from the repo (used by server.js via require('../assets/js/...'))
 COPY assets/js/ ./assets/js/
 
+# Locale catalogues used by the web i18n loader (/locales/*.json)
+COPY renderer/locales/ ./renderer/locales/
+
 # Web server
 COPY web/server.js        ./web/server.js
 COPY web/preferences.json ./web/preferences.json
