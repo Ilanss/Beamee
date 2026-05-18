@@ -1,15 +1,15 @@
 {
   "name": "beamee",
   "productName": "Beamee",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "watch": "electronmon .",
-    "dist": "electron-builder",
+    "dist": "electron-builder --x64 --arm64",
     "watch-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css --watch",
-    "build-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css"
+    "build-tailwind": "tailwindcss -i ./renderer/css/style.css -o ./renderer/css/output.css && cp renderer/css/output.css web/public/css/output.css"
   },
   "author": "Ilans",
   "license": "ISC",

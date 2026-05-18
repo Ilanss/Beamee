@@ -1,7 +1,7 @@
 {
   "$id": "https://beamee.app/schemas/song.v1.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Beamee Song (v1)",
+  "title": "Beamee Song (v1.1)",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -46,7 +46,8 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
-    "notes": { "type": "string" }
+    "notes": { "type": "string" },
+    "copyright": { "type": "string" }
   },
   "$defs": {
     "sectionType": {

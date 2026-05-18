@@ -1,5 +1,5 @@
 import { resolveTheme } from './themeUtils.js';
-import { loadLocale, resolveLanguage, applyTranslations, t } from './i18n.js';
+import { loadLocale, resolveLanguage, applyTranslations, t, electronLocaleLoader } from './i18n.js';
 
 let rootElement = null;
 let fontSelect = null;
@@ -508,7 +508,7 @@ export async function mount(root, context = {}) {
         // live DOM immediately — no navigation needed since the module is
         // already mounted and applyTranslations walks the whole subtree.
         const resolvedLang = resolveLanguage(newLang, updated?.osLocale ?? '');
-        loadLocale(resolvedLang);
+        await loadLocale(resolvedLang, electronLocaleLoader);
         applyTranslations(rootElement);
 
         // Re-apply background image text which uses t() at runtime.
